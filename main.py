@@ -54,7 +54,8 @@ def main():
         q.put(byte_pos)
         list_of_checksums.append(None)
 
-    print('File size is %d bytes. Will upload in %d parts.' % (file_size, q.qsize()))
+    print('File size is %d bytes. Will upload in %d parts.' %
+          (file_size, q.qsize()))
 
     glacier = boto3.client('glacier')
     response = glacier.initiate_multipart_upload(
@@ -100,11 +101,15 @@ def upload_part(vault_name, upload_id, part_size, fileobj, file_size):
         range_header = 'bytes {}-{}/*'.format(
             byte_pos, byte_pos + len(part) - 1)
 
-        print('Uploading part %s...' % byte_pos)
+        part_num = int(byte_pos / part_size)
+
+        print('Uploading part %s of %s...' %
+              (part_num, len(list_of_checksums)))
+
         response = glacier.upload_multipart_part(
             vaultName=vault_name, uploadId=upload_id, range=range_header,
             body=part)
-        list_of_checksums[int(byte_pos / part_size)] = response['checksum']
+        list_of_checksums[part_num] = response['checksum']
 
         q.task_done()
     print('Thread done.')
