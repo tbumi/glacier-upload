@@ -104,7 +104,7 @@ def upload_part(vault_name, upload_id, part_size, fileobj, file_size):
         part_num = int(byte_pos / part_size)
 
         print('Uploading part %s of %s...' %
-              (part_num, len(list_of_checksums)))
+              (part_num + 1, len(list_of_checksums)))
 
         response = glacier.upload_multipart_part(
             vaultName=vault_name, uploadId=upload_id, range=range_header,
