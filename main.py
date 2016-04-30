@@ -76,11 +76,14 @@ def main():
 
     total_tree_hash = calculate_total_tree_hash()
 
-    glacier.complete_multipart_upload(
+    print('Completing multipart upload...')
+    response = glacier.complete_multipart_upload(
         vaultName=vault_name, uploadId=upload_id,
         archiveSize=str(file_size), checksum=total_tree_hash)
-    print('Completing multipart upload...')
-    print('Total tree hash: %s' % total_tree_hash)
+    print('Calculated total tree hash: %s' % total_tree_hash)
+    print('Glacier total tree hash: %s' % response['checksum'])
+    print('Location: %s' % response['location'])
+    print('Archive ID: %s' % response['archiveId'])
     file_to_upload.close()
 
 
