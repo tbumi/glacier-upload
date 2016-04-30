@@ -15,18 +15,18 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import argparse
-import tempfile
-import tarfile
-import boto3
-import math
-import threading
-import queue
-import hashlib
 import binascii
+import boto3
+import concurrent.futures
+import hashlib
+import math
+import sys
+import tarfile
+import tempfile
+import threading
 
-q = queue.Queue()
 fileblock = threading.Lock()
-list_of_checksums = []
+glacier = boto3.client('glacier')
 
 
 def main():
@@ -50,31 +50,42 @@ def main():
 
     file_size = file_to_upload.seek(0, 2)
 
+    job_list = []
+    list_of_checksums = []
     for byte_pos in range(0, file_size, part_size):
-        q.put(byte_pos)
+        job_list.append(byte_pos)
         list_of_checksums.append(None)
 
-    print('File size is %d bytes. Will upload in %d parts.' %
-          (file_size, q.qsize()))
+    num_parts = len(job_list)
 
-    glacier = boto3.client('glacier')
+    print('File size is %d bytes. Will upload in %d parts.' %
+          (file_size, num_parts))
+
+    print('Initiating multipart upload...')
     response = glacier.initiate_multipart_upload(
         vaultName=vault_name,
         archiveDescription=args['arc_desc'],
         partSize=str(part_size)
         )
     upload_id = response['uploadId']
-    print('Initiating multipart upload...')
 
-    for i in range(args['num_threads']):
-        t = threading.Thread(target=upload_part,
-                             args=(vault_name, upload_id, part_size,
-                                   file_to_upload, file_size))
-        t.start()
+    print('Spawning threads...')
+    with concurrent.futures.ThreadPoolExecutor(
+            max_workers=args['num_threads']) as executor:
+        futures_list = {executor.submit(
+            upload_part, job, vault_name, upload_id, part_size, file_to_upload,
+            file_size, num_parts): int(job / part_size) for job in job_list}
+        for future in concurrent.futures.as_completed(futures_list):
+            try:
+                result = future.result()
+            except BaseException:
+                glacier.abort_multipart_upload(
+                    vaultName=vault_name, uploadId=upload_id)
+                sys.exit(1)
+            else:
+                list_of_checksums[futures_list[future]] = result
 
-    q.join()
-
-    total_tree_hash = calculate_total_tree_hash()
+    total_tree_hash = calculate_total_tree_hash(list_of_checksums)
 
     print('Completing multipart upload...')
     response = glacier.complete_multipart_upload(
@@ -87,38 +98,28 @@ def main():
     file_to_upload.close()
 
 
-def upload_part(vault_name, upload_id, part_size, fileobj, file_size):
-    print('Thread starting...')
-    glacier = boto3.client('glacier')
-    while True:
-        try:
-            byte_pos = q.get(block=False)
-        except queue.Empty:
-            break
+def upload_part(byte_pos, vault_name, upload_id, part_size, fileobj, file_size,
+                num_parts):
+    fileblock.acquire()
+    fileobj.seek(byte_pos)
+    part = fileobj.read(part_size)
+    fileblock.release()
 
-        fileblock.acquire()
-        fileobj.seek(byte_pos)
-        part = fileobj.read(part_size)
-        fileblock.release()
+    range_header = 'bytes {}-{}/{}'.format(
+        byte_pos, byte_pos + len(part) - 1, file_size)
+    part_num = int(byte_pos / part_size)
 
-        range_header = 'bytes {}-{}/*'.format(
-            byte_pos, byte_pos + len(part) - 1)
+    print('Uploading part %s of %s...' %
+          (part_num + 1, num_parts))
 
-        part_num = int(byte_pos / part_size)
+    response = glacier.upload_multipart_part(
+        vaultName=vault_name, uploadId=upload_id, range=range_header,
+        body=part)
 
-        print('Uploading part %s of %s...' %
-              (part_num + 1, len(list_of_checksums)))
-
-        response = glacier.upload_multipart_part(
-            vaultName=vault_name, uploadId=upload_id, range=range_header,
-            body=part)
-        list_of_checksums[part_num] = response['checksum']
-
-        q.task_done()
-    print('Thread done.')
+    return response['checksum']
 
 
-def calculate_total_tree_hash():
+def calculate_total_tree_hash(list_of_checksums):
     tree = list_of_checksums[:]
     while len(tree) > 1:
         parent = []
