@@ -78,7 +78,7 @@ def main():
         for future in concurrent.futures.as_completed(futures_list):
             try:
                 result = future.result()
-            except BaseException:
+            except:
                 glacier.abort_multipart_upload(
                     vaultName=vault_name, uploadId=upload_id)
                 sys.exit(1)
@@ -116,7 +116,11 @@ def upload_part(byte_pos, vault_name, upload_id, part_size, fileobj, file_size,
         vaultName=vault_name, uploadId=upload_id, range=range_header,
         body=part)
 
-    return response['checksum']
+    checksum = hashlib.sha256(part).hexdigest()
+
+    assert checksum == response['checksum']
+
+    return checksum
 
 
 def calculate_total_tree_hash(list_of_checksums):
