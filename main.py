@@ -126,14 +126,20 @@ def upload_part(byte_pos, vault_name, upload_id, part_size, fileobj, file_size,
         vaultName=vault_name, uploadId=upload_id, range=range_header,
         body=part)
 
-    checksum = hashlib.sha256(part).hexdigest()
+    checksums = []
+    step = 1024 * 1024  # 1 MB
+    upper_bound = min(len(part), part_size)
+    for chunk_pos in range(0, upper_bound, step):
+        chunk = part[chunk_pos:chunk_pos+step]
+        checksums.append(hashlib.sha256(chunk).hexdigest())
+    checksum = calculate_tree_hash(checksums)
 
-    assert checksum == response['checksum']
+    assert checksum == response['checksum'], 'Checksums do not match.'
 
     return checksum
 
 
-def calculate_total_tree_hash(list_of_checksums):
+def calculate_tree_hash(list_of_checksums):
     tree = list_of_checksums[:]
     while len(tree) > 1:
         parent = []
