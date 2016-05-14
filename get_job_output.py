@@ -32,7 +32,7 @@ def main():
             jobId=job_id)
 
         if response['contentType'] == 'application/json':
-            inventory_json = json.load(response['body'])
+            inventory_json = json.loads(response['body'].read().decode('utf-8'))
             pprint.pprint(inventory_json)
         elif response['contentType'] == 'text/csv':
             print(response['body'].read())
