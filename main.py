@@ -50,6 +50,20 @@ def main():
 
     file_size = file_to_upload.seek(0, 2)
 
+    if file_size < 4096:
+        print('File size is less than 4 MB. Uploading in one request...')
+
+        response = glacier.upload_archive(
+            vaultName=vault_name,
+            archiveDescription=args['arc_desc'],
+            body=file_to_upload)
+
+        print('Uploaded.')
+        print('Glacier total tree hash: %s' % response['checksum'])
+        print('Location: %s' % response['location'])
+        print('Archive ID: %s' % response['archiveId'])
+        return
+
     job_list = []
     list_of_checksums = []
     for byte_pos in range(0, file_size, part_size):
