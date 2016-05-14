@@ -12,13 +12,16 @@ def main():
         job_type = 'archive-retrieval'
 
     job_params = {
-        'Format': args['format'],
         'Type': job_type,
-        'Description': args['description']
     }
+
+    if args['description'] is not None:
+        job_params['Description'] = args['description']
 
     if job_type == 'archive-retrieval':
         job_params['ArchiveId'] = args['archive_id']
+    else:
+        job_params['Format'] = args['format']
 
     print('Sending job initiation request...')
 
