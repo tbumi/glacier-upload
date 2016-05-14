@@ -75,22 +75,32 @@ def main():
         futures_list = {executor.submit(
             upload_part, job, vault_name, upload_id, part_size, file_to_upload,
             file_size, num_parts): int(job / part_size) for job in job_list}
-        for future in concurrent.futures.as_completed(futures_list):
-            try:
-                result = future.result()
-            except:
-                glacier.abort_multipart_upload(
-                    vaultName=vault_name, uploadId=upload_id)
-                sys.exit(1)
-            else:
-                list_of_checksums[futures_list[future]] = result
+        done, not_done = concurrent.futures.wait(
+            futures_list, return_when=concurrent.futures.FIRST_EXCEPTION)
+        if len(not_done) > 0:
+            # an exception occured
+            for future in not_done:
+                future.cancel()
+            for future in done:
+                e = future.exception()
+                if e is not None:
+                    print('Exception occured: %r' % e)
+            glacier.abort_multipart_upload(
+                vaultName=vault_name, uploadId=upload_id)
+            print('Upload aborted.')
+            sys.exit(1)
+        else:
+            # all threads completed without raising
+            for future in done:
+                list_of_checksums[futures_list[future]] = future.result()
 
-    total_tree_hash = calculate_total_tree_hash(list_of_checksums)
+    total_tree_hash = calculate_tree_hash(list_of_checksums)
 
     print('Completing multipart upload...')
     response = glacier.complete_multipart_upload(
         vaultName=vault_name, uploadId=upload_id,
         archiveSize=str(file_size), checksum=total_tree_hash)
+    print('Upload successful.')
     print('Calculated total tree hash: %s' % total_tree_hash)
     print('Glacier total tree hash: %s' % response['checksum'])
     print('Location: %s' % response['location'])
