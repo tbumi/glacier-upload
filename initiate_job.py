@@ -39,7 +39,7 @@ def parse_args():
                              'inventory-retrieval')
     parser.add_argument('-v', '--vault-name', required=True,
                         help='The name of the vault to upload to')
-    parser.add_argument('-f', '--format', default='JSON',
+    parser.add_argument('-f', '--format', default='JSON', choices=['CSV', 'JSON'],
                         help='Format to request from glacier')
     parser.add_argument('-d', '--description',
                         help='Description of this job (optional)')
