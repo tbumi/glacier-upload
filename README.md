@@ -15,13 +15,14 @@ You can execute the main python script from the command line. Be sure to provide
 - `-d` or `--arc-desc`: provide a description for your archive. This will be very useful for retrieval of your archive later, as the original filename will be lost in Glacier.
 - `-p` or `--part-size`: the archive will be split into chunks before uploading. You can choose the chunk size in MB, but it has to be a multiply of a power of two (e.g. 2, 4, 8, 16, 32, and so on), with a minimum of 1, and a maximum of 4096. Defaults to 8.
 - `-t` or `--num-threads`: the number of threads used for uploading. Defaults to 5.
+- `-r` or `--region`: the AWS data center that hosts your vault. Defaults to the one in your AWS configuration, e.g., `~/.aws/config`. 
 
 The required values are `vault-name` and `file-name`. `file-name` can be one or more files.
 
 Example invocation:
 
 ```
-python main.py -v some-vault -f file01.txt file2.jpg file3.png -d "A backup of my files"
+python main.py -r us-east-2 -v some-vault -f file01.txt file2.jpg file3.png -d "A backup of my files"
 ```
 
 ## How it works
