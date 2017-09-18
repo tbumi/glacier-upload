@@ -124,6 +124,7 @@ def main():
             if checksum == sha256_treehash:
                 print('Checksum match. Removing from job list.')
                 job_list.remove(byte_start)
+                list_of_checksums[part_num] = checksum
             else:
                 print('Checksum mismatch. Not removing.')
 
