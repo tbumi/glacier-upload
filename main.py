@@ -193,14 +193,25 @@ def upload_part(byte_pos, vault_name, upload_id, part_size, fileobj, file_size,
     print('Uploading part {0} of {1}... ({2:.2%})'.format(
         part_num + 1, num_parts, percentage))
 
-    response = glacier.upload_multipart_part(
-        vaultName=vault_name, uploadId=upload_id, range=range_header,
-        body=part)
+    MAX_ATTEMPTS = 10
+    uploaded = False
+    for i in range(MAX_ATTEMPTS):
+        try:
+            response = glacier.upload_multipart_part(
+                vaultName=vault_name, uploadId=upload_id, range=range_header,
+                body=part)
+            checksum = calculate_tree_hash(part, part_size)
+            assert checksum == response['checksum'], 'Checksums do not match.'
+            # if everything worked, then we can break
+            uploaded = True
+            break
+        except:
+            print('Upload error:', sys.exc_info()[0])
+            print('Trying again. Part {0}'.format(part_num + 1))
 
-    checksum = calculate_tree_hash(part, part_size)
+    assert uploaded, 'After multiple attempts, still failed to upload part'
+
     del part
-    assert checksum == response['checksum'], 'Checksums do not match.'
-
     return checksum
 
 
