@@ -27,7 +27,7 @@ import threading
 
 fileblock = threading.Lock()
 glacier = boto3.client('glacier')
-
+MAX_ATTEMPTS = 10
 
 def main():
     args = parse_args()
@@ -194,14 +194,27 @@ def upload_part(byte_pos, vault_name, upload_id, part_size, fileobj, file_size,
     print('Uploading part {0} of {1}... ({2:.2%})'.format(
         part_num + 1, num_parts, percentage))
 
-    response = glacier.upload_multipart_part(
-        vaultName=vault_name, uploadId=upload_id, range=range_header,
-        body=part)
+    for i in range(MAX_ATTEMPTS):
+        try:
+            response = glacier.upload_multipart_part(
+                vaultName=vault_name, uploadId=upload_id, range=range_header,
+                body=part)
+            checksum = calculate_tree_hash(part, part_size)
+            if checksum != response['checksum']:
+                print('Checksums do not match. Will try again.')
+                continue
 
-    checksum = calculate_tree_hash(part, part_size)
+            # if everything worked, then we can break
+            break
+        except:
+            print('Upload error:', sys.exc_info()[0])
+            print('Trying again. Part {0}'.format(part_num + 1))
+    else:
+        print('After multiple attempts, still failed to upload part')
+        print('Exiting.')
+        sys.exit(1)
+
     del part
-    assert checksum == response['checksum'], 'Checksums do not match.'
-
     return checksum
 
 
