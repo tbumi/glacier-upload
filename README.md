@@ -2,11 +2,7 @@
 
 A simple script to upload files to an AWS Glacier vault.
 
-## Background
-
-I wanted to backup my files to Amazon Glacier. But apparently Amazon Glacier usage is not that straightforward. So I whipped up this script and thought it might be useful for someone somewhere someday (maybe never but who cares).
-
-## Features
+## Usage
 
 You can execute the main python script from the command line. Be sure to provide it with some arguments, namely:
 
@@ -30,11 +26,9 @@ The script will read a file (or more), archive it (them) if it isn't already an 
 
 ## Dependencies
 
-The script has only one dependency: [boto3](https://github.com/boto/boto3/). It is built to run on Python 3 (tested on Python 3.5). I have no plans to support Python 2.
+The script has only one dependency: [boto3](https://github.com/boto/boto3/). It is built to run on Python 3 (tested on Python 3.6). I have no plans to support Python 2.
 
-## Roadmap
-
-If I have the time and willpower (or maybe you could send me a PR ;) ), there is always room for development:
+## TODO
 
 - Add ability to verify multipart uploads by requesting a list of parts and checking them
 - Add ability to list/cancel in-progress uploads
