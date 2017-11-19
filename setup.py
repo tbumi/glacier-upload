@@ -33,7 +33,13 @@ setup(
 
     entry_points={
         'console_scripts': [
-            'upload=glacier_upload.main:main',
+            'glacier_upload=glacier_upload.upload:upload',
+            'list_all_glacier_uploads=glacier_upload.list_uploads:list_all_uploads',
+            'list_parts_in_upload=glacier_upload.list_uploads:list_parts_in_upload',
+            'init_archive_retrieval=glacier_upload.initiate_job:init_archive_retrieval',
+            'init_inventory_retrieval=glacier_upload.initiate_job:init_inventory_retrieval',
+            'get_glacier_job_output=glacier_upload.get_job_output:get_job_output',
+            'abort_glacier_upload=glacier_upload.abort_upload:abort_upload',
         ],
     },
 )

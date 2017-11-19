@@ -14,9 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import argparse
 import binascii
-import boto3
 import concurrent.futures
 import hashlib
 import math
@@ -25,57 +23,82 @@ import tarfile
 import tempfile
 import threading
 
-fileblock = threading.Lock()
-glacier = boto3.client('glacier')
+import boto3
+import click
+
 MAX_ATTEMPTS = 10
 
-def main():
-    args = parse_args()
+fileblock = threading.Lock()
+glacier = boto3.client('glacier')
 
-    print('Reading file...')
-    if len(args['file_name']) == 1 and '.tar' in args['file_name'][0]:
-        file_to_upload = open(args['file_name'][0], mode='rb')
-        print('Opened pre-tarred file.')
+
+@click.command()
+@click.option('-v', '--vault-name', required=True,
+              help='The name of the vault to upload to')
+@click.option('-f', '--file-name', multiple=True,
+              help='The file or directory name on your local '
+              'filesystem to upload')
+@click.option('-d', '--arc-desc', default='',
+              metavar='ARCHIVE_DESCRIPTION',
+              help='The archive description to help identify archives later')
+@click.option('-p', '--part-size', type=int, default=8,
+              help='The part size for multipart upload, in '
+              'megabytes (e.g. 1, 2, 4, 8) default: 8')
+@click.option('-t', '--num-threads', type=int, default=5,
+              help='The amount of concurrent threads (default: 5)')
+@click.option('-u', '--upload-id',
+              help='Optional upload id, if provided then will '
+              'resume upload.')
+def upload(vault_name, file_name, arc_desc, part_size, num_threads, upload_id):
+    if not math.log2(part_size).is_integer():
+        raise ValueError('part-size must be a power of 2')
+    if part_size < 1 or part_size > 4096:
+        raise ValueError('part-size must be more than 1 MB '
+                         'and less than 4096 MB')
+
+    click.echo('Reading file...')
+    if len(file_name) == 1 and '.tar' in file_name[0]:
+        file_to_upload = open(file_name[0], mode='rb')
+        click.echo('Opened pre-tarred file.')
     else:
-        print('Tarring file...')
+        click.echo('Tarring file...')
         file_to_upload = tempfile.TemporaryFile()
         tar = tarfile.open(fileobj=file_to_upload, mode='w:xz')
-        for filename in args['file_name']:
+        for filename in file_name:
             tar.add(filename)
         tar.close()
-        print('File tarred.')
+        click.echo('File tarred.')
 
-    vault_name = args['vault_name']
-    part_size = args['part_size'] * 1024 * 1024
+    part_size = part_size * 1024 * 1024
 
     file_size = file_to_upload.seek(0, 2)
 
     if file_size < 4096:
-        print('File size is less than 4 MB. Uploading in one request...')
+        click.echo('File size is less than 4 MB. Uploading in one request...')
 
         response = glacier.upload_archive(
             vaultName=vault_name,
-            archiveDescription=args['arc_desc'],
+            archiveDescription=arc_desc,
             body=file_to_upload)
 
-        print('Uploaded.')
-        print('Glacier tree hash: %s' % response['checksum'])
-        print('Location: %s' % response['location'])
-        print('Archive ID: %s' % response['archiveId'])
-        print('Done.')
+        click.echo('Uploaded.')
+        click.echo('Glacier tree hash: %s' % response['checksum'])
+        click.echo('Location: %s' % response['location'])
+        click.echo('Archive ID: %s' % response['archiveId'])
+        click.echo('Done.')
         file_to_upload.close()
         return
 
     job_list = []
     list_of_checksums = []
 
-    if args['upload_id'] is None:
-        print('Initiating multipart upload...')
+    if upload_id is None:
+        click.echo('Initiating multipart upload...')
         response = glacier.initiate_multipart_upload(
             vaultName=vault_name,
-            archiveDescription=args['arc_desc'],
+            archiveDescription=arc_desc,
             partSize=str(part_size)
-            )
+        )
         upload_id = response['uploadId']
 
         for byte_pos in range(0, file_size, part_size):
@@ -83,13 +106,11 @@ def main():
             list_of_checksums.append(None)
 
         num_parts = len(job_list)
-        print('File size is %d bytes. Will upload in %d parts.' %
-              (file_size, num_parts))
+        click.echo(f'File size is {file_size} bytes. Will upload in {num_parts} parts.')
     else:
-        print('Resuming upload...')
-        upload_id = args['upload_id']
+        click.echo('Resuming upload...')
 
-        print('Fetching already uploaded parts...')
+        click.echo('Fetching already uploaded parts...')
         response = glacier.list_parts(
             vaultName=vault_name,
             uploadId=upload_id
@@ -97,7 +118,7 @@ def main():
         parts = response['Parts']
         part_size = response['PartSizeInBytes']
         while 'Marker' in response:
-            print('Getting more parts...')
+            click.echo('Getting more parts...')
             response = glacier.list_parts(
                 vaultName=vault_name,
                 uploadId=upload_id,
@@ -108,32 +129,26 @@ def main():
         for byte_pos in range(0, file_size, part_size):
             job_list.append(byte_pos)
             list_of_checksums.append(None)
+
         num_parts = len(job_list)
+        with click.progressbar(parts, label='Verifying uploaded parts') as bar:
+            for part_data in bar:
+                byte_start = int(part_data['RangeInBytes'].partition('-')[0])
+                file_to_upload.seek(byte_start)
+                part = file_to_upload.read(part_size)
+                checksum = calculate_tree_hash(part, part_size)
 
-        for part_data in parts:
-            byte_start = int(part_data['RangeInBytes'].partition('-')[0])
-            sha256_treehash = part_data['SHA256TreeHash']
+                if checksum == part_data['SHA256TreeHash']:
+                    job_list.remove(byte_start)
+                    part_num = byte_start // part_size
+                    list_of_checksums[part_num] = checksum
 
-            part_num = int(byte_start / part_size)
-            print('Checking part %s of %s...' % (part_num + 1, len(parts)))
-
-            file_to_upload.seek(byte_start)
-            part = file_to_upload.read(part_size)
-            checksum = calculate_tree_hash(part, part_size)
-
-            if checksum == sha256_treehash:
-                print('Checksum match. Removing from job list.')
-                job_list.remove(byte_start)
-                list_of_checksums[part_num] = checksum
-            else:
-                print('Checksum mismatch. Not removing.')
-
-    print('Spawning threads...')
+    click.echo('Spawning threads...')
     with concurrent.futures.ThreadPoolExecutor(
-            max_workers=args['num_threads']) as executor:
+            max_workers=num_threads) as executor:
         futures_list = {executor.submit(
             upload_part, job, vault_name, upload_id, part_size, file_to_upload,
-            file_size, num_parts): int(job / part_size) for job in job_list}
+            file_size, num_parts): job // part_size for job in job_list}
         done, not_done = concurrent.futures.wait(
             futures_list, return_when=concurrent.futures.FIRST_EXCEPTION)
         if len(not_done) > 0:
@@ -143,9 +158,9 @@ def main():
             for future in done:
                 e = future.exception()
                 if e is not None:
-                    print('Exception occured: %r' % e)
-            print('Upload not aborted. Upload id: %s' % upload_id)
-            print('Exiting.')
+                    click.echo('Exception occured: %r' % e)
+            click.echo('Upload not aborted. Upload id: %s' % upload_id)
+            click.echo('Exiting.')
             file_to_upload.close()
             sys.exit(1)
         else:
@@ -155,27 +170,27 @@ def main():
                 list_of_checksums[job_index] = future.result()
 
     if len(list_of_checksums) != num_parts:
-        print('List of checksums incomplete. Recalculating...')
+        click.echo('List of checksums incomplete. Recalculating...')
         list_of_checksums = []
         for byte_pos in range(0, file_size, part_size):
             part_num = int(byte_pos / part_size)
-            print('Checksum %s of %s...' % (part_num + 1, num_parts))
+            click.echo('Checksum %s of %s...' % (part_num + 1, num_parts))
             file_to_upload.seek(byte_pos)
             part = file_to_upload.read(part_size)
             list_of_checksums.append(calculate_tree_hash(part, part_size))
 
     total_tree_hash = calculate_total_tree_hash(list_of_checksums)
 
-    print('Completing multipart upload...')
+    click.echo('Completing multipart upload...')
     response = glacier.complete_multipart_upload(
         vaultName=vault_name, uploadId=upload_id,
         archiveSize=str(file_size), checksum=total_tree_hash)
-    print('Upload successful.')
-    print('Calculated total tree hash: %s' % total_tree_hash)
-    print('Glacier total tree hash: %s' % response['checksum'])
-    print('Location: %s' % response['location'])
-    print('Archive ID: %s' % response['archiveId'])
-    print('Done.')
+    click.echo('Upload successful.')
+    click.echo('Calculated total tree hash: %s' % total_tree_hash)
+    click.echo('Glacier total tree hash: %s' % response['checksum'])
+    click.echo('Location: %s' % response['location'])
+    click.echo('Archive ID: %s' % response['archiveId'])
+    click.echo('Done.')
     file_to_upload.close()
 
 
@@ -188,30 +203,30 @@ def upload_part(byte_pos, vault_name, upload_id, part_size, fileobj, file_size,
 
     range_header = 'bytes {}-{}/{}'.format(
         byte_pos, byte_pos + len(part) - 1, file_size)
-    part_num = int(byte_pos / part_size)
-    percentage = part_num/num_parts
+    part_num = byte_pos // part_size
+    percentage = part_num / num_parts
 
-    print('Uploading part {0} of {1}... ({2:.2%})'.format(
+    click.echo('Uploading part {0} of {1}... ({2:.2%})'.format(
         part_num + 1, num_parts, percentage))
 
     for i in range(MAX_ATTEMPTS):
         try:
             response = glacier.upload_multipart_part(
-                vaultName=vault_name, uploadId=upload_id, range=range_header,
-                body=part)
+                vaultName=vault_name, uploadId=upload_id,
+                range=range_header, body=part)
             checksum = calculate_tree_hash(part, part_size)
             if checksum != response['checksum']:
-                print('Checksums do not match. Will try again.')
+                click.echo('Checksums do not match. Will try again.')
                 continue
 
             # if everything worked, then we can break
             break
         except:
-            print('Upload error:', sys.exc_info()[0])
-            print('Trying again. Part {0}'.format(part_num + 1))
+            click.echo('Upload error:', sys.exc_info()[0])
+            click.echo('Trying again. Part {0}'.format(part_num + 1))
     else:
-        print('After multiple attempts, still failed to upload part')
-        print('Exiting.')
+        click.echo('After multiple attempts, still failed to upload part')
+        click.echo('Exiting.')
         sys.exit(1)
 
     del part
@@ -244,36 +259,5 @@ def calculate_total_tree_hash(list_of_checksums):
     return tree[0]
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(
-        description='Upload a file to glacier using multipart upload.')
-
-    parser.add_argument('-v', '--vault-name', required=True,
-                        help='The name of the vault to upload to')
-    parser.add_argument('-f', '--file-name', nargs='+',
-                        help='The file or directroy name on your local '
-                        'filesystem to upload')
-    parser.add_argument('-d', '--arc-desc', default='',
-                        metavar='ARCHIVE_DESCRIPTION',
-                        help='The archive description')
-    parser.add_argument('-p', '--part-size', type=int, default=8,
-                        help='The part size for multipart upload, in '
-                        'megabytes (e.g. 1, 2, 4, 8) default: 8')
-    parser.add_argument('-t', '--num-threads', type=int, default=5,
-                        help='The amount of concurrent threads (default: 5)')
-    parser.add_argument('-u', '--upload-id',
-                        help='Optional upload id, if provided then will '
-                              'resume upload.')
-
-    args = vars(parser.parse_args())
-
-    if not math.log2(args['part_size']).is_integer():
-        raise ValueError('part-size must be a power of 2')
-    if args['part_size'] < 1 or args['part_size'] > 4096:
-        raise ValueError('part-size must be more than 1 MB '
-                         'and less than 4096 MB')
-
-    return args
-
 if __name__ == '__main__':
-    main()
+    upload()

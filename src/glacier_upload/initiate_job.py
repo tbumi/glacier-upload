@@ -1,62 +1,54 @@
 import boto3
-import argparse
+import click
 
 
-def main():
+@click.command()
+@click.option('-v', '--vault-name', required=True,
+              help='The name of the vault to upload to')
+@click.option('-a', '--archive-id', required=True,
+              help='ID of the archive to retrieve')
+@click.option('-d', '--description',
+              help='Description of this job (optional)')
+def init_archive_retrieval(vault_name, archive_id, description):
     glacier = boto3.client('glacier')
-    args = parse_args()
-
-    if args['job_type'] == 'inv' or args['job_type'] == 'inventory-retrieval':
-        job_type = 'inventory-retrieval'
-    else:
-        job_type = 'archive-retrieval'
 
     job_params = {
-        'Type': job_type,
+        'Type': 'archive-retrieval',
+        'ArchiveId': archive_id
     }
+    if description is not None:
+        job_params['Description'] = description
 
-    if args['description'] is not None:
-        job_params['Description'] = args['description']
-
-    if job_type == 'archive-retrieval':
-        job_params['ArchiveId'] = args['archive_id']
-    else:
-        job_params['Format'] = args['format']
-
-    print('Sending job initiation request...')
+    print('Sending archive-retrieval initiation request...')
 
     response = glacier.initiate_job(
-        vaultName=args['vault_name'],
+        vaultName=vault_name,
         jobParameters=job_params)
 
-    print('Job initiation request recieved. Job ID: %s' % response['jobId'])
+    print('Job initiation request recieved. Job ID: {}'.format(response['jobId']))
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(
-        description='Initiate a glacier job.')
+@click.command()
+@click.option('-v', '--vault-name', required=True,
+              help='The name of the vault to upload to')
+@click.option('-f', '--format', default='JSON', type=click.Choice(['CSV', 'JSON']),
+              help='Format to request from glacier')
+@click.option('-d', '--description',
+              help='Description of this job (optional)')
+def init_inventory_retrieval(vault_name, format, description):
+    glacier = boto3.client('glacier')
 
-    parser.add_argument('job_type', choices=['arc', 'archive-retrieval',
-                                             'inv', 'inventory-retrieval'],
-                        help='The type of job: archive-retrieval or '
-                             'inventory-retrieval')
-    parser.add_argument('-v', '--vault-name', required=True,
-                        help='The name of the vault to upload to')
-    parser.add_argument('-f', '--format', default='JSON', choices=['CSV', 'JSON'],
-                        help='Format to request from glacier')
-    parser.add_argument('-d', '--description',
-                        help='Description of this job (optional)')
-    parser.add_argument('-a', '--archive-id',
-                        help='ID of the archive to retrieve')
+    job_params = {
+        'Type': 'inventory-retrieval',
+        'Format': format
+    }
+    if description is not None:
+        job_params['Description'] = description
 
-    args = vars(parser.parse_args())
+    print('Sending inventory-retrieval initiation request...')
 
-    if args['job_type'] == 'arc' or args['job_type'] == 'archive-retrieval':
-        if args['archive_id'] is None:
-            raise ValueError('For archive-retrieval jobs, '
-                             'provide archive id with argument "-a".')
+    response = glacier.initiate_job(
+        vaultName=vault_name,
+        jobParameters=job_params)
 
-    return args
-
-if __name__ == '__main__':
-    main()
+    print('Job initiation request recieved. Job ID: {}'.format(response['jobId']))

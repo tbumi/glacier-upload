@@ -1,32 +1,17 @@
 import boto3
-import argparse
+import click
 
 
-def main():
+@click.command()
+@click.argument('vault_name')
+@click.argument('upload_id')
+def abort_upload(vault_name, upload_id):
     glacier = boto3.client('glacier')
-    args = parse_args()
 
-    print('Aborting upload...')
+    click.echo('Aborting upload...')
     glacier.abort_multipart_upload(
-        vaultName=args['vault-name'],
-        uploadId=args['upload-id']
+        vaultName=vault_name,
+        uploadId=upload_id
     )
 
-    print('Aborted.')
-
-
-def parse_args():
-    parser = argparse.ArgumentParser(
-        description='Manually abort an upload.')
-
-    parser.add_argument('vault-name',
-                        help='The name of the vault')
-    parser.add_argument('upload-id',
-                        help='The upload id')
-
-    args = vars(parser.parse_args())
-
-    return args
-
-if __name__ == '__main__':
-    main()
+    click.echo('Aborted.')
