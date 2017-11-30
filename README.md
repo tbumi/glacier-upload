@@ -6,9 +6,22 @@ A simple script to upload files to an AWS Glacier vault.
 
 I wanted to backup my files to Amazon Glacier. But apparently Amazon Glacier usage is not that straightforward. So I whipped up this script and thought it might be useful for someone somewhere someday (maybe never but who cares).
 
+
+## Recommended usage
+It's best to use a virtualenv:
+```
+virtualenv -p `which python3` ~/.ve/glacier
+source ~/.ve/glacier/bin/activate
+pip install boto3
+python glacier.py
+```
+
 ## Features
 
-You can execute the main python script from the command line. Be sure to provide it with some arguments, namely:
+You can execute the main python script `glacier.py` from the command line with subcommands {upload, get_output_job, initiate_job, list_uploads, manual_abort_upload, delete}.
+
+### Upload
+Be sure to provide it with required arguments, namely:
 
 - `-v` or `--vault-name`: the name of the AWS Glacier vault you want to upload to. You can create a vault from the AWS Web Console.
 - `-f` or `--file-name`: the name of the file(s) you want to insert in the archive. You can specify one or more files, and they will be automatically archived in a tar and compressed with the [LZMA](https://en.wikipedia.org/wiki/Lempel%E2%80%93Ziv%E2%80%93Markov_chain_algorithm) compression algorithm. If you specify only one file and the filename contains `.tar`, it will be regarded as already archived and will not be rearchived/recompressed.
@@ -21,8 +34,24 @@ The required values are `vault-name` and `file-name`. `file-name` can be one or 
 Example invocation:
 
 ```
-python main.py -v some-vault -f file01.txt file2.jpg file3.png -d "A backup of my files"
+python glacier.py upload -v some-vault -f file01.txt file2.jpg file3.png -d "A backup of my files"
 ```
+
+### Get job output
+Typically gets the output of a job initiated with `initiate_job`, it can be either a downloaded archive or the inventory list.
+
+### Initiate job
+Initiate the retrieval of either an archive or the inventory list.
+
+### List uploads parser
+List multipart uploads and parts in an upload.
+
+### Manually abort upload
+Manually abort an upload.
+
+### Delete
+Initiate deletion of an archive. Note that this is a fully stateless operation that will provide no other feedback than a 204 HTTP response if successful.
+
 
 ## How it works
 

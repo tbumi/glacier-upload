@@ -24,13 +24,21 @@ import sys
 import tarfile
 import tempfile
 import threading
+import json
+import pprint
 
 fileblock = threading.Lock()
 glacier = boto3.client('glacier')
 MAX_ATTEMPTS = 10
 
-def main():
-    args = parse_args()
+
+def upload(args):
+    args = vars(args)
+    if not math.log2(args['part_size']).is_integer():
+        raise ValueError('part-size must be a power of 2')
+    if args['part_size'] < 1 or args['part_size'] > 4096:
+        raise ValueError('part-size must be more than 1 MB '
+                         'and less than 4096 MB')
 
     print('Reading file...')
     if len(args['file_name']) == 1 and '.tar' in args['file_name'][0]:
@@ -243,37 +251,218 @@ def calculate_total_tree_hash(list_of_checksums):
         tree = parent
     return tree[0]
 
+def get_job_output(args):
+    args = vars(args)
+    vault_name = args['vault_name']
+    job_id = args['job_id']
 
-def parse_args():
+    print('Checking job status...')
+
+    response = glacier.describe_job(
+        vaultName=vault_name,
+        jobId=job_id)
+
+    job_status_code = response['StatusCode']
+
+    print('Job status: %s' % job_status_code)
+
+    if not response['Completed']:
+        print('Exiting.')
+        sys.exit(0)
+    else:
+        print('Retrieving job data...')
+        response = glacier.get_job_output(
+            vaultName=vault_name,
+            jobId=job_id)
+
+        if response['contentType'] == 'application/json':
+            inventory_json = json.loads(response['body'].read().decode('utf-8'))
+            pprint.pprint(inventory_json)
+        elif response['contentType'] == 'text/csv':
+            print(response['body'].read())
+        else:
+            with open(args['file_name'], 'xb') as file:
+                file.write(response['body'].read())
+
+def initiate_job(args):
+    args = vars(args)
+    if args['job_type'] == 'arc' or args['job_type'] == 'archive-retrieval':
+        if args['archive_id'] is None:
+            raise ValueError('For archive-retrieval jobs, '
+                             'provide archive id with argument "-a".')
+
+    if args['job_type'] == 'inv' or args['job_type'] == 'inventory-retrieval':
+        job_type = 'inventory-retrieval'
+    else:
+        job_type = 'archive-retrieval'
+
+    job_params = {
+        'Type': job_type,
+    }
+
+    if args['description'] is not None:
+        job_params['Description'] = args['description']
+
+    if job_type == 'archive-retrieval':
+        job_params['ArchiveId'] = args['archive_id']
+    else:
+        job_params['Format'] = args['format']
+
+    print('Sending job initiation request...')
+
+    response = glacier.initiate_job(
+        vaultName=args['vault_name'],
+        jobParameters=job_params)
+
+    print('Job initiation request recieved. Job ID: %s' % response['jobId'])
+
+def list_uploads(args):
+    args = vars(args)
+    if args['job_type'] == 'one' or args['job_type'] == 'list-one':
+        if args['upload_id'] is None:
+            raise ValueError('For list-one jobs, '
+                             'provide job id with argument "-j".')
+
+    if args['job_type'] == 'all' or args['job_type'] == 'list-all':
+        job_type = 'list-all'
+    else:
+        job_type = 'list-one'
+
+    request_args = {'vaultName': args['vault_name']}
+    if job_type == 'list-all':
+        print('Listing all multipart uploads...')
+        uploads_list = []
+
+        more_pages = True
+        while more_pages:
+            response = glacier.list_multipart_uploads(**request_args)
+            uploads_list.extend(response['UploadsList'])
+            if 'Marker' not in response:
+                more_pages = False
+            else:
+                request_args['marker'] = response['Marker']
+
+        pprint.pprint(uploads_list)
+    else:
+        print('Listing parts in one multipart upload...')
+        request_args['uploadId'] = args['upload_id']
+
+        parts_list = []
+
+        more_pages = True
+        while more_pages:
+            response = glacier.list_parts(**request_args)
+            parts_list.extend(response['Parts'])
+            if 'Marker' not in response:
+                more_pages = False
+            else:
+                request_args['marker'] = response['Marker']
+
+        pprint.pprint(parts_list)
+
+def manual_abort_upload(args):
+    args = vars(args)
+    print('Aborting upload...')
+    glacier.abort_multipart_upload(
+        vaultName=args['vault-name'],
+        uploadId=args['upload-id']
+    )
+
+    print('Aborted.')
+
+def delete(args):
+    args = vars(args)
+    print('Sending delete archive request...')
+    response = glacier.delete_archive(
+        vaultName=args['vault_name'],
+        archiveId=args['archive_id'])
+    print('Delete archive request sent. Response:\n%s' % response)
+
+
+def main():
     parser = argparse.ArgumentParser(
-        description='Upload a file to glacier using multipart upload.')
+        description='A simple script to upload files to an AWS Glacier vault.')
+    subparsers = parser.add_subparsers()
 
-    parser.add_argument('-v', '--vault-name', required=True,
+    upload_parser = subparsers.add_parser('upload',
+        description='Upload a file to glacier using multipart upload.')
+    upload_parser.add_argument('-v', '--vault-name', required=True,
                         help='The name of the vault to upload to')
-    parser.add_argument('-f', '--file-name', nargs='+',
-                        help='The file or directroy name on your local '
+    upload_parser.add_argument('-f', '--file-name', nargs='+',
+                        help='The file or directory name on your local '
                         'filesystem to upload')
-    parser.add_argument('-d', '--arc-desc', default='',
+    upload_parser.add_argument('-d', '--arc-desc', default='',
                         metavar='ARCHIVE_DESCRIPTION',
                         help='The archive description')
-    parser.add_argument('-p', '--part-size', type=int, default=8,
+    upload_parser.add_argument('-p', '--part-size', type=int, default=8,
                         help='The part size for multipart upload, in '
                         'megabytes (e.g. 1, 2, 4, 8) default: 8')
-    parser.add_argument('-t', '--num-threads', type=int, default=5,
+    upload_parser.add_argument('-t', '--num-threads', type=int, default=5,
                         help='The amount of concurrent threads (default: 5)')
-    parser.add_argument('-u', '--upload-id',
+    upload_parser.add_argument('-u', '--upload-id',
                         help='Optional upload id, if provided then will '
                               'resume upload.')
+    upload_parser.set_defaults(func=upload)
 
-    args = vars(parser.parse_args())
+    get_job_output_parser = subparsers.add_parser('get_job_output',
+        description='Get the output of a glacier job.')
+    get_job_output_parser.add_argument('-v', '--vault-name', required=True,
+                        help='The name of the vault to upload to')
+    get_job_output_parser.add_argument('-j', '--job-id', required=True,
+                        help='Job ID')
+    get_job_output_parser.add_argument('-f', '--file-name', default='glacier_archive.tar.xz',
+                        help='File name of archive to be saved, '
+                             'if the job is an archive-retrieval')
+    get_job_output_parser.set_defaults(func=get_job_output)
 
-    if not math.log2(args['part_size']).is_integer():
-        raise ValueError('part-size must be a power of 2')
-    if args['part_size'] < 1 or args['part_size'] > 4096:
-        raise ValueError('part-size must be more than 1 MB '
-                         'and less than 4096 MB')
+    initiate_job_parser = subparsers.add_parser('initiate_job',
+        description='Initiate a glacier job.')
+    initiate_job_parser.add_argument('job_type', choices=['arc', 'archive-retrieval',
+                                             'inv', 'inventory-retrieval'],
+                        help='The type of job: archive-retrieval or '
+                             'inventory-retrieval')
+    initiate_job_parser.add_argument('-v', '--vault-name', required=True,
+                        help='The name of the vault to upload to')
+    initiate_job_parser.add_argument('-f', '--format', default='JSON', choices=['CSV', 'JSON'],
+                        help='Format to request from glacier')
+    initiate_job_parser.add_argument('-d', '--description',
+                        help='Description of this job (optional)')
+    initiate_job_parser.add_argument('-a', '--archive-id',
+                        help='ID of the archive to retrieve')
+    initiate_job_parser.set_defaults(func=initiate_job)
 
-    return args
+    list_uploads_parser = subparsers.add_parser('list_uploads',
+        description='List multipart uploads and parts in an upload.')
+    list_uploads_parser.add_argument('job_type', choices=['all', 'list-all',
+                                             'one', 'list-one'],
+                        help='The type of job: list all multipart uploads'
+                        'or just one')
+    list_uploads_parser.add_argument('-v', '--vault-name', required=True,
+                        help='The name of the vault')
+    list_uploads_parser.add_argument('-u', '--upload-id',
+                        help='ID of upload to list parts')
+    list_uploads_parser.set_defaults(func=list_uploads)
+
+    manual_abort_upload_parser = subparsers.add_parser('manual_abort_upload',
+        description='Manually abort an upload.')
+    manual_abort_upload_parser.add_argument('vault-name',
+                        help='The name of the vault')
+    manual_abort_upload_parser.add_argument('upload-id',
+                        help='The upload id')
+    manual_abort_upload_parser.set_defaults(func=manual_abort_upload)
+
+    delete_parser = subparsers.add_parser('delete')
+    delete_parser.add_argument('-v', '--vault-name', required=True,
+                        help='The name of the vault to upload to')
+    delete_parser.add_argument('-a', '--archive-id', required=True,
+                        help='ID of the archive to retrieve')
+    delete_parser.set_defaults(func=delete)
+
+    args = parser.parse_args()
+    if len(vars(args)) == 0:
+        parser.print_help()
+    else:
+        args.func(args)
 
 if __name__ == '__main__':
     main()
