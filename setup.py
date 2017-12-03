@@ -40,6 +40,7 @@ setup(
             'init_inventory_retrieval=glacier_upload.initiate_job:init_inventory_retrieval',
             'get_glacier_job_output=glacier_upload.get_job_output:get_job_output',
             'abort_glacier_upload=glacier_upload.abort_upload:abort_upload',
+            'delete_glacier_archive=glacier_upload.delete_archive.delete_archive'
         ],
     },
 )
