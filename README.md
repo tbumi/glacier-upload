@@ -2,35 +2,35 @@
 
 A simple script to upload files to an AWS Glacier vault.
 
+## Installation
+
+$ pip install glacier-upload
+
 ## Usage
 
-You can execute the main python script from the command line. Be sure to provide it with some arguments, namely:
+There are eight scripts available for use.
 
-- `-v` or `--vault-name`: the name of the AWS Glacier vault you want to upload to. You can create a vault from the AWS Web Console.
-- `-f` or `--file-name`: the name of the file(s) you want to insert in the archive. You can specify one or more files, and they will be automatically archived in a tar and compressed with the [LZMA](https://en.wikipedia.org/wiki/Lempel%E2%80%93Ziv%E2%80%93Markov_chain_algorithm) compression algorithm. If you specify only one file and the filename contains `.tar`, it will be regarded as already archived and will not be rearchived/recompressed.
-- `-d` or `--arc-desc`: provide a description for your archive. This will be very useful for retrieval of your archive later, as the original filename will be lost in Glacier.
-- `-p` or `--part-size`: the archive will be split into chunks before uploading. You can choose the chunk size in MB, but it has to be a multiply of a power of two (e.g. 2, 4, 8, 16, 32, and so on), with a minimum of 1, and a maximum of 4096. Defaults to 8.
-- `-t` or `--num-threads`: the number of threads used for uploading. Defaults to 5.
+- `glacier_upload`: Upload files to glacier (pre-archive if necessary) using multithreaded multipart upload.
+- `list_all_glacier_uploads`: List all glacier uploads currently pending.
+- `list_parts_in_upload`: List all parts that have been uploaded so far in a multipart upload batch.
+- `init_archive_retrieval`: Initiate retrieval for a specific archive.
+- `init_inventory_retrieval`: Initiate inventory retrieval for the whole vault.
+- `get_glacier_job_output`: Get the output of a job (archive retrieval or inventory retrieval)
+- `abort_glacier_upload`: Abort a multipart glacier upload.
+- `delete_glacier_archive`: Delete a glacier archive.
 
-The required values are `vault-name` and `file-name`. `file-name` can be one or more files.
+For options and arguments, invoke the corresponding command with `--help`.
 
-Example invocation:
-
-```
-python main.py -v some-vault -f file01.txt file2.jpg file3.png -d "A backup of my files"
-```
-
-## How it works
+### How `glacier_upload` works
 
 The script will read a file (or more), archive it (them) if it isn't already an archive, split the file into chunks, and spawn a number of threads that will upload the chunks in parallel. Note that it will not read the entire file into memory, but only as it processes the chunks.
 
 ## Dependencies
 
-The script has only one dependency: [boto3](https://github.com/boto/boto3/). It is built to run on Python 3 (tested on Python 3.6). I have no plans to support Python 2.
+The script has only one dependency: [boto3](https://github.com/boto/boto3/). It is built to run on Python 3 (tested on Python 3.6). Python 2 is not supported.
 
-## TODO
+## Contributing
 
-- Add ability to verify multipart uploads by requesting a list of parts and checking them
-- Add ability to list/cancel in-progress uploads
-- Add ability to resume uploads
-- Add progress indication for archiving
+Contributions and/or bug fixes are welcome! Just fork, make a topic branch, and submit a PR. Don't forget to add your name in CONTRIBUTORS.
+
+A good place to start is the TODO file.

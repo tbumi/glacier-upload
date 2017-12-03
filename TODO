@@ -1,0 +1,5 @@
+- Unit tests / CI
+- Add ability to verify multipart uploads by requesting a list of parts and checking them
+- Add ability to list/cancel in-progress uploads
+- Add ability to resume uploads
+- Add progress indication for archiving
