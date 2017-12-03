@@ -3,7 +3,10 @@ include/
 lib/
 share/
 man/
+dist/
 lib64
 .Python
 pip-selfcheck.json
 pyvenv.cfg
+.eggs/
+*.egg-info/

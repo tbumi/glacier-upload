@@ -4,7 +4,9 @@ A simple script to upload files to an AWS Glacier vault.
 
 ## Installation
 
-$ pip install glacier-upload
+```
+$ pip install glacier_upload
+```
 
 ## Usage
 
