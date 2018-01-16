@@ -106,7 +106,7 @@ def upload(vault_name, file_name, arc_desc, part_size, num_threads, upload_id):
             list_of_checksums.append(None)
 
         num_parts = len(job_list)
-        click.echo(f'File size is {file_size} bytes. Will upload in {num_parts} parts.')
+        click.echo('File size is {} bytes. Will upload in {} parts.'.format(file_size, num_parts))
     else:
         click.echo('Resuming upload...')
 
