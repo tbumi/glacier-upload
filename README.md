@@ -29,7 +29,9 @@ The script will read a file (or more), archive it (them) if it isn't already an 
 
 ## Dependencies
 
-The script has only one dependency: [boto3](https://github.com/boto/boto3/). It is built to run on Python 3 (tested on Python 3.6). Python 2 is not supported.
+The script has only two dependencies: [boto3](https://github.com/boto/boto3/) and [click](http://click.pocoo.org).
+
+It is built to run on Python 3.5 and newer. Python 2 is not supported.
 
 ## Contributing
 
