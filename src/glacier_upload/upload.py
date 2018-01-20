@@ -18,6 +18,7 @@ import binascii
 import concurrent.futures
 import hashlib
 import math
+import os.path
 import sys
 import tarfile
 import tempfile
@@ -35,7 +36,7 @@ glacier = boto3.client('glacier')
 @click.command()
 @click.option('-v', '--vault-name', required=True,
               help='The name of the vault to upload to')
-@click.option('-f', '--file-name', multiple=True,
+@click.option('-f', '--file-name', required=True, multiple=True,
               help='The file or directory name on your local '
               'filesystem to upload')
 @click.option('-d', '--arc-desc', default='',
@@ -57,10 +58,7 @@ def upload(vault_name, file_name, arc_desc, part_size, num_threads, upload_id):
                          'and less than 4096 MB')
 
     click.echo('Reading file...')
-    if len(file_name) == 1 and '.tar' in file_name[0]:
-        file_to_upload = open(file_name[0], mode='rb')
-        click.echo('Opened pre-tarred file.')
-    else:
+    if len(file_name) > 1 or os.path.isdir(file_name[0]):
         click.echo('Tarring file...')
         file_to_upload = tempfile.TemporaryFile()
         tar = tarfile.open(fileobj=file_to_upload, mode='w:xz')
@@ -68,6 +66,9 @@ def upload(vault_name, file_name, arc_desc, part_size, num_threads, upload_id):
             tar.add(filename)
         tar.close()
         click.echo('File tarred.')
+    else:
+        file_to_upload = open(file_name[0], mode='rb')
+        click.echo('Opened single file.')
 
     part_size = part_size * 1024 * 1024
 
