@@ -2,7 +2,7 @@ import boto3
 import click
 
 
-@click.command
+@click.command()
 @click.option('-v', '--vault-name', required=True,
               help='The name of the vault')
 @click.option('-u', '--upload-id', required=True,
