@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(
     name='glacier_upload',
 
-    version='1.0',
+    version='1.1',
 
     description='AWS Glacier upload utility',
 
