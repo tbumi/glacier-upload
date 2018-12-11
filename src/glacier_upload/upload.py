@@ -30,7 +30,6 @@ import click
 MAX_ATTEMPTS = 10
 
 fileblock = threading.Lock()
-glacier = boto3.client('glacier')
 
 
 @click.command()
@@ -39,6 +38,8 @@ glacier = boto3.client('glacier')
 @click.option('-f', '--file-name', required=True, multiple=True,
               help='The file or directory name on your local '
               'filesystem to upload')
+@click.option('-r', '--region',
+              help='The name of the region to upload to')
 @click.option('-d', '--arc-desc', default='',
               metavar='ARCHIVE_DESCRIPTION',
               help='The archive description to help identify archives later')
@@ -50,7 +51,9 @@ glacier = boto3.client('glacier')
 @click.option('-u', '--upload-id',
               help='Optional upload id, if provided then will '
               'resume upload.')
-def upload(vault_name, file_name, arc_desc, part_size, num_threads, upload_id):
+def upload(vault_name, file_name, region, arc_desc, part_size, num_threads, upload_id):
+    glacier = boto3.client('glacier', region)
+
     if not math.log2(part_size).is_integer():
         raise ValueError('part-size must be a power of 2')
     if part_size < 1 or part_size > 4096:
@@ -149,7 +152,7 @@ def upload(vault_name, file_name, arc_desc, part_size, num_threads, upload_id):
             max_workers=num_threads) as executor:
         futures_list = {executor.submit(
             upload_part, job, vault_name, upload_id, part_size, file_to_upload,
-            file_size, num_parts): job // part_size for job in job_list}
+            file_size, num_parts, glacier): job // part_size for job in job_list}
         done, not_done = concurrent.futures.wait(
             futures_list, return_when=concurrent.futures.FIRST_EXCEPTION)
         if len(not_done) > 0:
@@ -196,7 +199,7 @@ def upload(vault_name, file_name, arc_desc, part_size, num_threads, upload_id):
 
 
 def upload_part(byte_pos, vault_name, upload_id, part_size, fileobj, file_size,
-                num_parts):
+                num_parts, glacier):
     fileblock.acquire()
     fileobj.seek(byte_pos)
     part = fileobj.read(part_size)
