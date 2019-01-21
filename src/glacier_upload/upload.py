@@ -32,25 +32,6 @@ MAX_ATTEMPTS = 10
 fileblock = threading.Lock()
 
 
-@click.command()
-@click.option('-v', '--vault-name', required=True,
-              help='The name of the vault to upload to')
-@click.option('-f', '--file-name', required=True, multiple=True,
-              help='The file or directory name on your local '
-              'filesystem to upload')
-@click.option('-r', '--region',
-              help='The name of the region to upload to')
-@click.option('-d', '--arc-desc', default='',
-              metavar='ARCHIVE_DESCRIPTION',
-              help='The archive description to help identify archives later')
-@click.option('-p', '--part-size', type=int, default=8,
-              help='The part size for multipart upload, in '
-              'megabytes (e.g. 1, 2, 4, 8) default: 8')
-@click.option('-t', '--num-threads', type=int, default=5,
-              help='The amount of concurrent threads (default: 5)')
-@click.option('-u', '--upload-id',
-              help='Optional upload id, if provided then will '
-              'resume upload.')
 def upload(vault_name, file_name, region, arc_desc, part_size, num_threads, upload_id):
     glacier = boto3.client('glacier', region)
 
@@ -197,6 +178,27 @@ def upload(vault_name, file_name, region, arc_desc, part_size, num_threads, uplo
     click.echo('Done.')
     file_to_upload.close()
 
+@click.command()
+@click.option('-v', '--vault-name', required=True,
+              help='The name of the vault to upload to')
+@click.option('-f', '--file-name', required=True, multiple=True,
+              help='The file or directory name on your local '
+              'filesystem to upload')
+@click.option('-r', '--region',
+              help='The name of the region to upload to')
+@click.option('-d', '--arc-desc', default='',
+              metavar='ARCHIVE_DESCRIPTION',
+              help='The archive description to help identify archives later')
+@click.option('-p', '--part-size', type=int, default=8,
+              help='The part size for multipart upload, in '
+              'megabytes (e.g. 1, 2, 4, 8) default: 8')
+@click.option('-t', '--num-threads', type=int, default=5,
+              help='The amount of concurrent threads (default: 5)')
+@click.option('-u', '--upload-id',
+              help='Optional upload id, if provided then will '
+              'resume upload.')
+def upload_command(vault_name, file_name, region, arc_desc, part_size, num_threads, upload_id):
+    return upload(vault_name, file_name, region, arc_desc, part_size, num_threads, upload_id)
 
 def upload_part(byte_pos, vault_name, upload_id, part_size, fileobj, file_size,
                 num_parts, glacier):

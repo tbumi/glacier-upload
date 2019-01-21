@@ -34,7 +34,7 @@ setup(
 
     entry_points={
         'console_scripts': [
-            'glacier_upload=glacier_upload.upload:upload',
+            'glacier_upload=glacier_upload.upload:upload_command',
             'list_all_glacier_uploads=glacier_upload.list_uploads:list_all_uploads_command',
             'list_parts_in_upload=glacier_upload.list_uploads:list_parts_in_upload_command',
             'init_archive_retrieval=glacier_upload.initiate_job:init_archive_retrieval_command',
