@@ -2,11 +2,6 @@ import boto3
 import click
 
 
-@click.command()
-@click.option('-v', '--vault-name', required=True,
-              help='The name of the vault')
-@click.option('-u', '--upload-id', required=True,
-              help='ID of the archive to delete')
 def delete_archive(vault_name, archive_id):
     glacier = boto3.client('glacier')
 
@@ -17,3 +12,12 @@ def delete_archive(vault_name, archive_id):
         archiveId=archive_id)
 
     click.echo('Delete archive request sent.')
+
+#TODO: the argument name was wrong and wasnt working before
+@click.command()
+@click.option('-v', '--vault-name', required=True,
+              help='The name of the vault')
+@click.option('-a', '--archive-id', required=True,
+              help='ID of the archive to delete')
+def delete_archive_command(vault_name, archive_id):
+    return delete_archive(vault_name, archive_id)
