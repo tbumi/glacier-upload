@@ -4,14 +4,6 @@ import boto3
 import click
 
 
-@click.command()
-@click.option('-v', '--vault-name', required=True,
-              help='The name of the vault to upload to')
-@click.option('-j', '--job-id', required=True,
-              help='Job ID')
-@click.option('-f', '--file-name', default='glacier_archive.tar.xz',
-              help='File name of archive to be saved, '
-                   'if the job is an archive-retrieval')
 def get_job_output(vault_name, job_id, file_name):
     glacier = boto3.client('glacier')
 
@@ -39,3 +31,14 @@ def get_job_output(vault_name, job_id, file_name):
         else:
             with open(file_name, 'xb') as file:
                 file.write(response['body'].read())
+
+@click.command()
+@click.option('-v', '--vault-name', required=True,
+              help='The name of the vault to upload to')
+@click.option('-j', '--job-id', required=True,
+              help='Job ID')
+@click.option('-f', '--file-name', default='glacier_archive.tar.xz',
+              help='File name of archive to be saved, '
+                   'if the job is an archive-retrieval')
+def get_job_output_command(vault_name, job_id, file_name):
+    return get_job_output(vault_name, job_id, file_name)
