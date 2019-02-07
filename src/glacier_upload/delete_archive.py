@@ -13,7 +13,6 @@ def delete_archive(vault_name, archive_id):
 
     click.echo('Delete archive request sent.')
 
-#TODO: the argument name was wrong and wasnt working before
 @click.command()
 @click.option('-v', '--vault-name', required=True,
               help='The name of the vault')
