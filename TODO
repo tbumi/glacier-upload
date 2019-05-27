@@ -1,5 +1,10 @@
+- test all commands
+- refactor list_of_checksums in upload.py
+
 - Unit tests / CI
-- Add ability to verify multipart uploads by requesting a list of parts and checking them
-- Add ability to list/cancel in-progress uploads
-- Add ability to resume uploads
 - Add progress indication for archiving
+- Add message for https://github.com/tbumi/glacier-upload/issues/17
+- https://help.github.com/en/articles/setting-guidelines-for-repository-contributors
+
+- If an error or exception is met, the current code just quit. Instead, it should automatically restart using the upload ID until the archive is fully uploaded.
+- When resuming an upload, the first step is to fetch the parts that are already upload. In current code, it displays "getting more parts" only without printing the part ID range.
