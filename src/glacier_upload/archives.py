@@ -74,18 +74,20 @@ def download_archive(response, file_name):
         file.write(response_stream.read())
     else:
         # Download data in chunks of chunk_size
-        chunk_number = 1
+        chunk_downloaded = 0
         chunk_size = 4096  # 4 KB
         for chunk in response_stream.iter_chunks(chunk_size):
-            # Output percentage after every 25th iteration
+            # iter_chunks returns bytes in chunk format by calling read internally for chunk_size
+            # https://github.com/boto/botocore/blob/51bcacab620bbb35c84157d61b9fed93f2a467f6/botocore/response.py#L125
             file.write(chunk)
-            download_percentage = (chunk_number * chunk_size) / content_length * 100
+            chunk_downloaded += len(chunk)
+            download_percentage = chunk_downloaded / content_length * 100
             click.echo((f"File download ... {round(download_percentage, 2)}% " +
-                        f"Byte position written ... {chunk_number * chunk_size}"
+                        f"Byte position written ... {chunk_downloaded}"
                         ))
-            chunk_number += 1
 
         # Close the response stream and file
+        click.echo(f"Total bytes downloaded {chunk_downloaded} of {content_length}")
         response_stream.close()
         file.close()
 
