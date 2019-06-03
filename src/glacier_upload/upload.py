@@ -54,7 +54,7 @@ def upload(vault_name, file_name, arc_desc, part_size, num_threads, upload_id):
     file_size = file_to_upload.seek(0, 2)
 
     if file_size < 4096:
-        click.echo("File size is less than 4 MB. Uploading in one request...")
+        click.echo("File size is less than 4 KB. Uploading in one request...")
 
         response = glacier.upload_archive(
             vaultName=vault_name, archiveDescription=arc_desc, body=file_to_upload
