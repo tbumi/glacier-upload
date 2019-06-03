@@ -79,10 +79,11 @@ def download_archive(response, file_name):
         for chunk in response_stream.iter_chunks(chunk_size):
             # Output percentage after every 25th iteration
             file.write(chunk)
-            chunk_number += 1
             download_percentage = (chunk_number * chunk_size) / content_length * 100
-            click.echo(
-                f"File download ... {download_percentage}% Byte position written ... {chunk_number * chunk_size}")
+            click.echo((f"File download ... {round(download_percentage, 2)}% " +
+                        f"Byte position written ... {chunk_number * chunk_size}"
+                        ))
+            chunk_number += 1
 
         # Close the response stream and file
         response_stream.close()
