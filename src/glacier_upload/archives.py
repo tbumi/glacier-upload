@@ -86,10 +86,11 @@ def download_archive(response, file_name):
                         f"Byte position written ... {chunk_downloaded}"
                         ))
 
-        # Close the response stream and file
         click.echo(f"Total bytes downloaded {chunk_downloaded} of {content_length}")
-        response_stream.close()
-        file.close()
+
+    # Close the response stream and file
+    response_stream.close()
+    file.close()
 
 
 def delete_archive(vault_name, archive_id):
