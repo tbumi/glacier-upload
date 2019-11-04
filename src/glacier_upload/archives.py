@@ -15,6 +15,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import json
+import os
 
 import boto3
 import click
@@ -35,6 +36,11 @@ def init_archive_retrieval(vault_name, archive_id, description):
 
 
 def get_archive(vault_name, job_id, file_name):
+    # If file already exists, log warning and return
+    if os.path.isfile(file_name):
+        click.echo(f"File {file_name} already exists. Please delete it or provide another file name")
+        return
+
     glacier = boto3.client("glacier")
 
     click.echo("Checking job status...")
@@ -55,8 +61,36 @@ def get_archive(vault_name, job_id, file_name):
     elif response["contentType"] == "text/csv":
         click.echo(response["body"].read())
     else:
-        with open(file_name, "xb") as file:
-            file.write(response["body"].read())
+        download_archive(response, file_name)
+
+
+def download_archive(response, file_name):
+    response_stream, content_length = response["body"], int(
+        response['ResponseMetadata']['HTTPHeaders']['content-length'])
+    click.echo(f"Downloading archive to file {file_name}")
+    file = open(file_name, 'xb')
+    if content_length < 4096:
+        # Content length is < 4 KB, downloading it in one go
+        file.write(response_stream.read())
+    else:
+        # Download data in chunks of chunk_size
+        chunk_downloaded = 0
+        chunk_size = 4096  # 4 KB
+        for chunk in response_stream.iter_chunks(chunk_size):
+            # iter_chunks returns bytes in chunk format by calling read internally for chunk_size
+            # https://github.com/boto/botocore/blob/51bcacab620bbb35c84157d61b9fed93f2a467f6/botocore/response.py#L125
+            file.write(chunk)
+            chunk_downloaded += len(chunk)
+            download_percentage = chunk_downloaded / content_length * 100
+            click.echo((f"File download ... {round(download_percentage, 2)}% " +
+                        f"Byte position written ... {chunk_downloaded}"
+                        ))
+
+        click.echo(f"Total bytes downloaded {chunk_downloaded} of {content_length}")
+
+    # Close the response stream and file
+    response_stream.close()
+    file.close()
 
 
 def delete_archive(vault_name, archive_id):
