@@ -35,6 +35,6 @@ It is built to run on Python 3.5 and newer. Python 2 is not supported.
 
 ## Contributing
 
-Contributions and/or bug fixes are welcome! Just fork, make a topic branch, and submit a PR. Don't forget to add your name in CONTRIBUTORS.
+Contributions and/or bug fixes are welcome! Just fork, make a topic branch, format the code using [black](https://github.com/python/black) `--line-length=80` and submit a PR. Don't forget to add your name in CONTRIBUTORS.
 
 A good place to start is the TODO file.
