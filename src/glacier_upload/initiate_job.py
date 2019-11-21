@@ -50,7 +50,7 @@ def init_inventory_retrieval(vault_name, format, description):
 )
 @click.option("-d", "--description", help="Description of this job (optional)")
 def init_archive_retrieval_command(vault_name, archive_id, description):
-    return init_archive_retrieval_command(vault_name, archive_id, description)
+    return init_archive_retrieval(vault_name, archive_id, description)
 
 
 @click.command()
