@@ -299,8 +299,8 @@ def upload_part(
 
             # if everything worked, then we can break
             break
-        except:
-            click.echo("Upload error:", sys.exc_info()[0])
+        except Exception as e:
+            click.echo("Upload error occured: %r" % e)
             click.echo("Trying again. Part {0}".format(part_num + 1))
     else:
         click.echo("After multiple attempts, still failed to upload part")
