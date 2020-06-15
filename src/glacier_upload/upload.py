@@ -60,7 +60,9 @@ def upload(
     part_size = part_size * 1024 * 1024
 
     file_size = file_to_upload.seek(0, 2)
-
+    # fix issue #29
+    file_to_upload.seek(0, 0)
+    
     if file_size < 4096:
         click.echo("File size is less than 4 MB. Uploading in one request...")
 
