@@ -4,7 +4,7 @@ click==6.7
 docutils==0.14
 jmespath==0.9.3
 pkg-resources==0.0.0
-py==1.5.2
+py==1.10.0
 pytest==3.2.5
 python-dateutil==2.6.1
 s3transfer==0.1.11
