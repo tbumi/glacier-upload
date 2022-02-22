@@ -12,7 +12,17 @@ def abort_upload(vault_name, upload_id):
 
 
 @click.command()
-@click.argument("vault_name")
-@click.argument("upload_id")
+@click.option(
+    "-v",
+    "--vault-name",
+    required=True,
+    help="The name of the vault for abort upload",
+)
+@click.option(
+    "-u",
+    "--upload-id",
+    required=True,
+    help="upload id for abort upload",
+)
 def abort_upload_command(vault_name, upload_id):
     return abort_upload(vault_name, upload_id)

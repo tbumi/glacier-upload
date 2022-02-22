@@ -95,6 +95,10 @@ def upload(
             list_of_checksums.append(None)
 
         num_parts = len(job_list)
+        if num_parts > 10000:
+            raise ValueError(
+                "Maximum number of parts per upload is 10 000, restricted by AWS, increase part size"
+            )
         click.echo(
             "File size is {} bytes. Will upload in {} parts.".format(
                 file_size, num_parts
