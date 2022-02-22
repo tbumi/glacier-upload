@@ -89,6 +89,7 @@ def upload(
             partSize=str(part_size),
         )
         upload_id = response["uploadId"]
+        click.echo('Upload ID: %s' % upload_id)
 
         for byte_pos in range(0, file_size, part_size):
             job_list.append(byte_pos)
@@ -342,4 +343,4 @@ def calculate_total_tree_hash(list_of_checksums):
 
 
 if __name__ == "__main__":
-    upload()
+    upload_command()
