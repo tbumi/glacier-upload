@@ -16,7 +16,7 @@ def init_archive_retrieval(vault_name, archive_id, description):
     )
 
     print(
-        "Job initiation request recieved. Job ID: {}".format(response["jobId"])
+        "Job initiation request received. Job ID: {}".format(response["jobId"])
     )
 
 
@@ -34,7 +34,7 @@ def init_inventory_retrieval(vault_name, format, description):
     )
 
     print(
-        "Job initiation request recieved. Job ID: {}".format(response["jobId"])
+        "Job initiation request received. Job ID: {}".format(response["jobId"])
     )
 
 

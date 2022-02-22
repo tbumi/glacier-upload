@@ -161,13 +161,13 @@ def upload(
             futures_list, return_when=concurrent.futures.FIRST_EXCEPTION
         )
         if len(not_done) > 0:
-            # an exception occured
+            # an exception occurred
             for future in not_done:
                 future.cancel()
             for future in done:
                 e = future.exception()
                 if e is not None:
-                    click.echo("Exception occured: %r" % e)
+                    click.echo("Exception occurred: %r" % e)
             click.echo("Upload not aborted. Upload id: %s" % upload_id)
             click.echo("Exiting.")
             file_to_upload.close()
@@ -305,7 +305,7 @@ def upload_part(
             # if everything worked, then we can break
             break
         except Exception as e:
-            click.echo("Upload error occured: %r" % e)
+            click.echo("Upload error occurred: %r" % e)
             click.echo("Trying again. Part {0}".format(part_num + 1))
     else:
         click.echo("After multiple attempts, still failed to upload part")
