@@ -283,6 +283,9 @@ def upload_part(
     part_num = byte_pos // part_size
     percentage = part_num / num_parts
 
+    # Checksum calculation can be done only once
+    checksum = calculate_tree_hash(part, part_size)
+
     click.echo(
         "Uploading part {0} of {1}... ({2:.2%})".format(
             part_num + 1, num_parts, percentage
@@ -297,7 +300,6 @@ def upload_part(
                 range=range_header,
                 body=part,
             )
-            checksum = calculate_tree_hash(part, part_size)
             if checksum != response["checksum"]:
                 click.echo("Checksums do not match. Will try again.")
                 continue
