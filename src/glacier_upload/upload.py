@@ -15,6 +15,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import concurrent.futures
+
+import boto3
+import click
 import hashlib
 import math
 import os.path
@@ -23,14 +26,13 @@ import tarfile
 import tempfile
 import threading
 
-import boto3
-import click
-
 MAX_UPLOAD_ATTEMPTS = 10  # 10 retries for each part before failing
 
 
-def upload(vault_name, file_name, arc_desc, part_size, num_threads, upload_id):
-    glacier = boto3.client("glacier")
+def upload(
+    vault_name, file_name, region, arc_desc, part_size, num_threads, upload_id
+):
+    glacier = boto3.client("glacier", region)
 
     if not math.log2(part_size).is_integer():
         raise ValueError("part-size must be a power of 2")

@@ -39,7 +39,7 @@ The script will read a file (or more), archive them if it isn't already an archi
 
 ## Contributing
 
-Contributions and/or bug fixes are welcome! Just fork, make a topic branch, and submit a PR. Don't forget to add your name in CONTRIBUTORS.
+Contributions and/or bug fixes are welcome! Just fork, make a topic branch, format the code using [black](https://github.com/python/black) `--line-length=80` and submit a PR. Don't forget to add your name in CONTRIBUTORS.
 
 ### Development Requirements
 
