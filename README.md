@@ -1,10 +1,10 @@
 # glacier-upload
 
-A simple script to upload files to an AWS Glacier vault.
+A helper tool to upload and manage archives in AWS Glacier Vaults
 
 ## Installation
 
-Please use Python 3.6 or newer. [Python 2 is not supported](https://pythonclock.org/).
+Minimum required Python version is 3.9. To install, run this in your terminal:
 
 ```
 $ pip install glacier_upload
@@ -39,15 +39,15 @@ The script will read a file (or more), archive them if it isn't already an archi
 
 ## Contributing
 
-Contributions and/or bug fixes are welcome! Just fork, make a topic branch, format the code using [black](https://github.com/python/black) `--line-length=80` and submit a PR. Don't forget to add your name in CONTRIBUTORS.
+Contributions and/or bug fixes are welcome! Just fork, make a topic branch, make your changes, and submit a PR.
 
 ### Development Requirements
 
-Before committing to this repo, setup [pre-commit](https://pre-commit.com/) and [poetry](https://poetry.eustace.io/), then run these commands to setup your environment:
+Before committing to this repo, setup [poetry](https://python-poetry.org/) on your local machine, then run these commands to setup your environment:
 
 ```sh
-pre-commit install --install-hooks
 poetry install
+pre-commit install
 ```
 
-All code is formatted with [black](https://github.com/ambv/black).
+All code is formatted with [black](https://github.com/psf/black).

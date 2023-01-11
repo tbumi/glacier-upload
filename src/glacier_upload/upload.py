@@ -1,5 +1,5 @@
 # A tool to upload and manage archives in AWS Glacier Vaults.
-# Copyright (C) 2016 Trapsilo P. Bumi tbumi@thpd.io
+# Copyright (C) 2023 Trapsilo P. Bumi tbumi@thpd.io
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,9 +15,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import concurrent.futures
-
-import boto3
-import click
 import hashlib
 import math
 import os.path
@@ -26,12 +23,13 @@ import tarfile
 import tempfile
 import threading
 
+import boto3
+import click
+
 MAX_UPLOAD_ATTEMPTS = 10  # 10 retries for each part before failing
 
 
-def upload(
-    vault_name, file_name, region, arc_desc, part_size, num_threads, upload_id
-):
+def upload(vault_name, file_name, region, arc_desc, part_size, num_threads, upload_id):
     glacier = boto3.client("glacier", region)
 
     if not math.log2(part_size).is_integer():
