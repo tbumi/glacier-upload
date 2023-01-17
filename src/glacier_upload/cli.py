@@ -1,8 +1,24 @@
+# A tool to upload and manage archives in AWS Glacier Vaults.
+# Copyright (C) 2023 Trapsilo P. Bumi tbumi@thpd.io
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import os
 
 import click
 
-from . import archives, inventories, upload, uploads
+from . import archives, inventories, upload_archive, uploads
 
 
 @click.group()
@@ -44,7 +60,7 @@ def upload_command(*args):
     is a directory, the directory and its contents will be consolidated into a single
     tar file and uploaded.
     """
-    return upload.upload(*args)
+    return upload_archive.upload(*args)
 
 
 @glacier_cli.command()
@@ -65,18 +81,6 @@ def list_parts_in_upload_command(vault_name, upload_id):
     as a part of a multipart upload batch identified by UPLOAD_ID.
     """
     return uploads.list_parts_in_upload(vault_name, upload_id)
-
-
-@glacier_cli.command()
-@click.argument("vault_name")
-@click.argument("upload_id")
-def abort_upload_command(vault_name, upload_id):
-    """
-    Abort the multipart glacier upload identified by UPLOAD_ID in VAULT_NAME.
-
-    Use this function to clean up uploads in progress that will not be resumed.
-    """
-    return uploads.abort_upload(vault_name, upload_id)
 
 
 @glacier_cli.command()
@@ -149,13 +153,3 @@ def get_archive_command(vault_name, job_id, file_name):
     glacier-init-archive-retrieval command.
     """
     return archives.get_archive(vault_name, job_id, file_name)
-
-
-@glacier_cli.command()
-@click.argument("vault_name")
-@click.argument("archive_id")
-def delete_archive_command(vault_name, archive_id):
-    """
-    Delete glacier archive with ARCHIVE_ID from VAULT_NAME.
-    """
-    return archives.delete_archive(vault_name, archive_id)

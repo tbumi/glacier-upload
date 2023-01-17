@@ -1,5 +1,5 @@
 # A tool to upload and manage archives in AWS Glacier Vaults.
-# Copyright (C) 2016 Trapsilo P. Bumi tbumi@thpd.io
+# Copyright (C) 2023 Trapsilo P. Bumi tbumi@thpd.io
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by

@@ -1,5 +1,5 @@
 # A tool to upload and manage archives in AWS Glacier Vaults.
-# Copyright (C) 2016 Trapsilo P. Bumi tbumi@thpd.io
+# Copyright (C) 2023 Trapsilo P. Bumi tbumi@thpd.io
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@ import click
 def list_all_uploads(vault_name):
     click.echo("Listing all multipart uploads...")
 
-    glacier = boto3.resource("glacier")
+    glacier = boto3.client("glacier")
     paginator = glacier.get_paginator("list_multipart_uploads")
     iterator = paginator.paginate(vaultName=vault_name)
     uploads_list = list(iterator.search("UploadsList"))
@@ -40,12 +40,3 @@ def list_parts_in_upload(vault_name, upload_id):
     parts_list = list(iterator.search("Parts"))
 
     click.echo(json.dumps(parts_list, indent=2))
-
-
-def abort_upload(vault_name, upload_id):
-    glacier = boto3.client("glacier")
-
-    click.echo("Aborting upload...")
-    glacier.abort_multipart_upload(vaultName=vault_name, uploadId=upload_id)
-
-    click.echo("Aborted.")
