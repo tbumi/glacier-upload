@@ -1,0 +1,45 @@
+[tool.poetry]
+name = "glacier-upload"
+version = "2.0"
+description = "A helper tool to upload and manage archives in AWS Glacier Vaults"
+authors = ["Trapsilo Bumi <tbumi@thpd.io>"]
+license = "GPL-3.0+"
+readme = "README.md"
+packages = [{include = "glacier_upload", from = "src"}]
+repository = "https://github.com/tbumi/glacier-upload"
+keywords = ["AWS", "glacier", "upload", "multipart"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: System Administrators",
+    "Operating System :: OS Independent",
+    "Topic :: System :: Archiving",
+    "Topic :: System :: Archiving :: Backup",
+    "Topic :: System :: Archiving :: Compression",
+]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+boto3 = "^1.26.47"
+click = "^8.1.3"
+
+[tool.poetry.group.dev.dependencies]
+black = "^22.12.0"
+flake8 = "^6.0.0"
+mypy = "^0.991"
+isort = "^5.11.4"
+pytest = "^7.2.0"
+pytest-cov = "^4.0.0"
+pre-commit = "^2.21.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+glacier = "glacier_upload.cli:glacier_cli"
+
+[tool.isort]
+profile = "black"
