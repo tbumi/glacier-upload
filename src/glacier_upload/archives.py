@@ -21,7 +21,7 @@ import boto3
 import click
 
 
-def init_archive_retrieval(vault_name, archive_id, description):
+def init_retrieval(vault_name, archive_id, description):
     glacier = boto3.client("glacier")
 
     job_params = {"Type": "archive-retrieval", "ArchiveId": archive_id}
@@ -29,31 +29,33 @@ def init_archive_retrieval(vault_name, archive_id, description):
         job_params["Description"] = description
 
     click.echo("Sending archive-retrieval initiation request...")
-
-    response = glacier.initiate_job(vaultName=vault_name, jobParameters=job_params)
+    try:
+        response = glacier.initiate_job(vaultName=vault_name, jobParameters=job_params)
+    except glacier.exceptions.ResourceNotFoundException as e:
+        raise click.ClickException(e.response["Error"]["Message"])
 
     click.echo(f"Job initiation request recieved. Job ID: {response['jobId']}")
 
 
-def get_archive(vault_name, job_id, file_name):
-    # If file already exists, print warning and return
-    if os.path.isfile(file_name):
-        click.echo(
-            f"File {file_name} already exists. Please delete it or "
-            "provide another file name"
-        )
-        return
-
+def get(vault_name, job_id, file_name):
     glacier = boto3.client("glacier")
 
     click.echo(f"Checking status of job {job_id} in {vault_name}...")
-    response = glacier.describe_job(vaultName=vault_name, jobId=job_id)
+    try:
+        response = glacier.describe_job(vaultName=vault_name, jobId=job_id)
+    except glacier.exceptions.ResourceNotFoundException as e:
+        raise click.ClickException(e.response["Error"]["Message"])
 
     click.echo(f"Job status: {response['StatusCode']}")
 
     if not response["Completed"]:
         click.echo("Job is not completed.")
         return
+
+    if os.path.lexists(file_name):
+        click.confirm(
+            f"Are you sure you want to overwrite the file {file_name}?", abort=True
+        )
 
     click.echo("Retrieving job data...")
     response = glacier.get_job_output(vaultName=vault_name, jobId=job_id)
@@ -76,7 +78,7 @@ def get_archive(vault_name, job_id, file_name):
 
 def download_archive(content_length, response_stream, file_name):
     click.echo(f"Downloading archive to file {file_name}")
-    with open(file_name, "xb") as file:
+    with open(file_name, "wb") as file:
         if content_length < 4096:
             # Content length is < 4 KB, downloading it in one go
             file.write(response_stream.read())

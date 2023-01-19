@@ -17,46 +17,58 @@
 import concurrent.futures
 import math
 import os.path
-import sys
 import tarfile
 import tempfile
 import threading
+import traceback
 
 import boto3
 import click
-from utils.tree_hash import calculate_total_tree_hash, calculate_tree_hash
 
+from .utils.tree_hash import calculate_total_tree_hash, calculate_tree_hash
+
+SINGLE_UPLOAD_THRESHOLD_BYTES = 100 * 1024 * 1024  # 100 MB
 MAX_UPLOAD_ATTEMPTS = 10  # 10 retries for each part before failing
 
+# ref: https://docs.aws.amazon.com/amazonglacier/latest/dev/uploading-archive-mpu.html
+MAX_NUMBER_OF_PARTS = 10000
+MIN_PART_SIZE_MB = 1
+MAX_PART_SIZE_MB = 4 * 1024
 
-def upload(
-    vault_name, file_name, region, arc_desc, part_size_mb, num_threads, upload_id
+
+def upload_archive(
+    vault_name, file_name, arc_desc, part_size_mb, num_threads, upload_id
 ):
-    glacier = boto3.client("glacier", region)
+    glacier = boto3.client("glacier")
 
+    if part_size_mb < MIN_PART_SIZE_MB or part_size_mb > MAX_PART_SIZE_MB:
+        raise click.ClickException(
+            f"part-size must be between {MIN_PART_SIZE_MB} and {MAX_PART_SIZE_MB} MB"
+        )
     if not math.log2(part_size_mb).is_integer():
-        raise ValueError("part-size must be a power of 2")
-    if part_size_mb < 1 or part_size_mb > 4096:
-        raise ValueError("part-size must be between 1 MB and 4096 MB")
+        raise click.ClickException("part-size must be a power of 2")
 
     file_to_upload = None
     try:
         if len(file_name) > 1 or os.path.isdir(file_name[0]):
             click.echo("Consolidating files into a .tar archive...")
             file_to_upload = tempfile.TemporaryFile()
-            tar = tarfile.open(fileobj=file_to_upload, mode="w:xz")
-            for filename in file_name:
-                tar.add(filename)
-            tar.close()
+            with tarfile.open(fileobj=file_to_upload, mode="w:xz") as tar:
+                for filename in file_name:
+                    tar.add(filename)
             click.echo("Files consolidated.")
         else:
             file_to_upload = open(file_name[0], mode="rb")
             click.echo("Opened single file.")
 
         file_size_bytes = file_to_upload.seek(0, 2)
+        file_to_upload.seek(0, 0)  # return file pointer to start of file
 
-        if file_size_bytes < 4096:
-            click.echo("File size is less than 4 KB. Uploading in one request...")
+        if file_size_bytes < SINGLE_UPLOAD_THRESHOLD_BYTES:
+            click.echo(
+                f"File size is less than {SINGLE_UPLOAD_THRESHOLD_BYTES:,} bytes. "
+                "Uploading in one request..."
+            )
             response = glacier.upload_archive(
                 vaultName=vault_name, archiveDescription=arc_desc, body=file_to_upload
             )
@@ -66,6 +78,27 @@ def upload(
             click.echo(f"Location: {response['location']}")
             click.echo(f"Archive ID: {response['archiveId']}")
         else:
+            if (
+                math.ceil(file_size_bytes / (part_size_mb * 1024 * 1024))
+                > MAX_NUMBER_OF_PARTS
+            ):
+                target_part_size = file_size_bytes / (10000 * 1024 * 1024)
+                new_part_size = MIN_PART_SIZE_MB
+                while new_part_size < target_part_size:
+                    # find the nearest power of 2 larger than the target part size
+                    new_part_size *= 2
+                    if new_part_size > MAX_PART_SIZE_MB:
+                        raise click.ClickException(
+                            "Archive/upload size too large (more than 40 TB)"
+                        )
+                click.confirm(
+                    "Maximum number of parts exceeded, would you like to "
+                    f"switch to {new_part_size} MB part size?",
+                    default=True,
+                    abort=True,
+                )
+                part_size_mb = new_part_size
+
             multipart_upload(
                 glacier,
                 upload_id,
@@ -93,8 +126,10 @@ def multipart_upload(
     file_to_upload,
     num_threads,
 ):
-    job_list = []
-    list_of_checksums = []
+    part_list = {}  # map of byte_start -> checksum
+    for byte_start in range(0, file_size_bytes, part_size_bytes):
+        part_list[byte_start] = None
+    num_parts = len(part_list)
 
     if upload_id is None:
         click.echo("Initiating multipart upload...")
@@ -105,28 +140,21 @@ def multipart_upload(
         )
         upload_id = response["uploadId"]
 
-        for byte_pos in range(0, file_size_bytes, part_size_bytes):
-            job_list.append(byte_pos)
-            list_of_checksums.append(None)
-
-        num_parts = len(job_list)
         click.echo(
-            f"File size is {file_size_bytes:,} bytes. Will upload in {num_parts} parts."
+            f"File size is {file_size_bytes:,} bytes. "
+            f"Will upload in {num_parts:,} parts."
         )
     else:
         click.echo(f"Resuming upload with id {upload_id}...")
 
         click.echo("Fetching already uploaded parts...")
-        paginator = glacier.get_paginator("list_parts")
-        response = paginator.paginate(vaultName=vault_name, uploadId=upload_id)
-        parts = response["Parts"]
-        part_size_bytes = response["PartSizeInBytes"]
+        try:
+            paginator = glacier.get_paginator("list_parts")
+            response = paginator.paginate(vaultName=vault_name, uploadId=upload_id)
+            parts = list(response.search("Parts"))
+        except glacier.exceptions.ResourceNotFoundException as e:
+            raise click.ClickException(e.response["Error"]["Message"])
 
-        for byte_pos in range(0, file_size_bytes, part_size_bytes):
-            job_list.append(byte_pos)
-            list_of_checksums.append(None)
-
-        num_parts = len(job_list)
         with click.progressbar(parts, label="Verifying uploaded parts") as bar:
             for part_data in bar:
                 byte_start = int(part_data["RangeInBytes"].partition("-")[0])
@@ -135,15 +163,15 @@ def multipart_upload(
                 checksum = calculate_tree_hash(part, part_size_bytes)
 
                 if checksum == part_data["SHA256TreeHash"]:
-                    job_list.remove(byte_start)
-                    part_num = byte_start // part_size_bytes
-                    list_of_checksums[part_num] = checksum
+                    part_list[byte_start] = checksum
 
     click.echo("Spawning threads...")
     with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
         fileblock = threading.Lock()
         futures_list = {}
-        for byte_pos in job_list:
+        for byte_pos in [
+            part for part, checksum in part_list.items() if checksum is None
+        ]:
             future = executor.submit(
                 upload_part,
                 byte_pos,
@@ -156,7 +184,7 @@ def multipart_upload(
                 glacier,
                 fileblock,
             )
-            futures_list[future] = byte_pos // part_size_bytes
+            futures_list[future] = byte_pos
         done, not_done = concurrent.futures.wait(
             futures_list, return_when=concurrent.futures.FIRST_EXCEPTION
         )
@@ -165,29 +193,19 @@ def multipart_upload(
             for future in not_done:
                 future.cancel()
             for future in done:
-                e = future.exception()
-                if e is not None:
-                    click.echo(f"Exception occured: {e}")
+                exc = future.exception()
+                if exc is not None:
+                    exc_string = "".join(traceback.format_exception(exc))
+                    click.secho(f"Exception occured: {exc_string}", err=True, fg="red")
             click.echo(f"Upload can still be resumed. Upload ID: {upload_id}")
-            click.echo("Exiting.")
-            sys.exit(1)
+            raise click.Abort
         else:
             # all threads completed without raising an Exception
             for future in done:
-                job_index = futures_list[future]
-                list_of_checksums[job_index] = future.result()
+                byte_start = futures_list[future]
+                part_list[byte_start] = future.result()
 
-    if len(list_of_checksums) != num_parts:
-        click.echo("List of checksums incomplete. Recalculating...")
-        list_of_checksums = []
-        for byte_pos in range(0, file_size_bytes, part_size_bytes):
-            part_num = int(byte_pos / part_size_bytes)
-            click.echo(f"Checksum {part_num + 1} of {num_parts}...")
-            file_to_upload.seek(byte_pos)
-            part = file_to_upload.read(part_size_bytes)
-            list_of_checksums.append(calculate_tree_hash(part, part_size_bytes))
-
-    total_tree_hash = calculate_total_tree_hash(list_of_checksums)
+    total_tree_hash = calculate_total_tree_hash(list(part_list.values()))
 
     click.echo("Completing multipart upload...")
     response = glacier.complete_multipart_upload(
@@ -233,19 +251,20 @@ def upload_part(
             )
             checksum = calculate_tree_hash(part, part_size_bytes)
             if checksum != response["checksum"]:
-                click.echo("Checksums do not match. Will try again.")
-                continue
+                raise Exception("Local checksum does not match Glacier checksum")
 
             # upload success, exit loop
             break
         except Exception as e:
-            click.echo(f"Upload error: {e}")
+            click.secho(f"Upload error: {e}", err=True, fg="red")
             click.echo(f"Trying again. Part {part_num + 1}")
             error = e
     else:
-        click.echo(
-            "After {MAX_UPLOAD_ATTEMPTS} attempts, "
-            "still failed to upload part. Aborting."
+        click.secho(
+            f"After {MAX_UPLOAD_ATTEMPTS} attempts, "
+            f"still failed to upload part. Aborting upload of part {part_num + 1}.",
+            err=True,
+            fg="red",
         )
         if error is not None:
             raise error

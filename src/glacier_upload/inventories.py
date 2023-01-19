@@ -20,7 +20,7 @@ import boto3
 import click
 
 
-def init_inventory_retrieval(vault_name, format, description):
+def init_retrieval(vault_name, format, description):
     glacier = boto3.client("glacier")
 
     job_params = {"Type": "inventory-retrieval", "Format": format}
@@ -28,17 +28,22 @@ def init_inventory_retrieval(vault_name, format, description):
         job_params["Description"] = description
 
     click.echo("Sending inventory-retrieval initiation request...")
-
-    response = glacier.initiate_job(vaultName=vault_name, jobParameters=job_params)
+    try:
+        response = glacier.initiate_job(vaultName=vault_name, jobParameters=job_params)
+    except glacier.exceptions.ResourceNotFoundException as e:
+        raise click.ClickException(e.response["Error"]["Message"])
 
     click.echo(f"Job initiation request recieved. Job ID: {response['jobId']}")
 
 
-def get_inventory(vault_name, job_id):
+def get(vault_name, job_id):
     glacier = boto3.client("glacier")
 
     click.echo("Checking inventory retrieval status...")
-    response = glacier.describe_job(vaultName=vault_name, jobId=job_id)
+    try:
+        response = glacier.describe_job(vaultName=vault_name, jobId=job_id)
+    except glacier.exceptions.ResourceNotFoundException as e:
+        raise click.ClickException(e.response["Error"]["Message"])
 
     click.echo(f"Inventory status: {response['StatusCode']}")
 
