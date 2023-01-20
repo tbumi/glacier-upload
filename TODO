@@ -1,8 +1,7 @@
-- CI
-- Unit tests
-- https://help.github.com/en/articles/setting-guidelines-for-repository-contributors
+-   Unit tests
+-   https://help.github.com/en/articles/setting-guidelines-for-repository-contributors
 
-- Add progress indication for archiving
-- implement auto-retry on multipart upload failure
-  - it should ask the user for confirmation to continue
-  - implement a flag to auto retry without confirmation
+-   Add progress indication for archiving
+-   implement auto-retry on multipart upload failure
+    -   it should ask the user for confirmation to continue
+    -   implement a flag to auto retry without confirmation
