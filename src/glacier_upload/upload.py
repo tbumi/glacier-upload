@@ -189,14 +189,14 @@ def multipart_upload(
             futures_list, return_when=concurrent.futures.FIRST_EXCEPTION
         )
         if len(not_done) > 0:
-            # an exception occured
+            # an exception occurred
             for future in not_done:
                 future.cancel()
             for future in done:
                 exc = future.exception()
                 if exc is not None:
                     exc_string = "".join(traceback.format_exception(exc))
-                    click.secho(f"Exception occured: {exc_string}", err=True, fg="red")
+                    click.secho(f"Exception occurred: {exc_string}", err=True, fg="red")
             click.echo(f"Upload can still be resumed. Upload ID: {upload_id}")
             raise click.Abort
         else:
@@ -240,6 +240,7 @@ def upload_part(
     range_header = f"bytes {start_pos}-{end_pos}/{file_size_bytes}"
     part_num = start_pos // part_size_bytes
     percentage = part_num / num_parts
+    checksum = calculate_tree_hash(part, part_size_bytes)
 
     click.echo(f"Uploading part {part_num + 1} of {num_parts}... ({percentage:.2%})")
 
@@ -249,7 +250,6 @@ def upload_part(
             response = glacier.upload_multipart_part(
                 vaultName=vault_name, uploadId=upload_id, range=range_header, body=part
             )
-            checksum = calculate_tree_hash(part, part_size_bytes)
             if checksum != response["checksum"]:
                 raise Exception("Local checksum does not match Glacier checksum")
 

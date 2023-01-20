@@ -14,7 +14,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import json
 import os
 
 import boto3
@@ -46,6 +45,11 @@ def get(vault_name, job_id, file_name):
     except glacier.exceptions.ResourceNotFoundException as e:
         raise click.ClickException(e.response["Error"]["Message"])
 
+    if response["Action"] != "ArchiveRetrieval":
+        raise click.ClickException(
+            "Job is not an archive retrieval. Check the Job ID again."
+        )
+
     click.echo(f"Job status: {response['StatusCode']}")
 
     if not response["Completed"]:
@@ -60,20 +64,12 @@ def get(vault_name, job_id, file_name):
     click.echo("Retrieving job data...")
     response = glacier.get_job_output(vaultName=vault_name, jobId=job_id)
 
-    if response["contentType"] == "application/json":
-        inventory_json = json.load(response["body"])
-        click.echo(json.dumps(inventory_json, indent=2))
-    elif response["contentType"] == "text/csv":
-        click.echo(response["body"].read())
-    else:
-        content_length = int(
-            response["ResponseMetadata"]["HTTPHeaders"]["content-length"]
-        )
-        response_stream = response["body"]
-        try:
-            download_archive(content_length, response_stream, file_name)
-        finally:
-            response_stream.close()
+    content_length = int(response["ResponseMetadata"]["HTTPHeaders"]["content-length"])
+    response_stream = response["body"]
+    try:
+        download_archive(content_length, response_stream, file_name)
+    finally:
+        response_stream.close()
 
 
 def download_archive(content_length, response_stream, file_name):
