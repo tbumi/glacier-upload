@@ -33,7 +33,7 @@ def init_retrieval(vault_name, format, description):
     except glacier.exceptions.ResourceNotFoundException as e:
         raise click.ClickException(e.response["Error"]["Message"])
 
-    click.echo(f"Job initiation request recieved. Job ID: {response['jobId']}")
+    click.echo(f"Job initiation request received. Job ID: {response['jobId']}")
 
 
 def get(vault_name, job_id):
