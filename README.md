@@ -6,7 +6,8 @@
 
 A helper tool to upload and manage archives in
 [Amazon S3 Glacier](https://docs.aws.amazon.com/amazonglacier/latest/dev/introduction.html)
-Vaults.
+Vaults. Amazon S3 Glacier is a cloud storage service that is optimized for long
+term storage for a relatively cheap price.
 
 ## Installation
 
@@ -20,9 +21,7 @@ $ pip install glacier_upload
 
 ### Prerequisites
 
-Amazon S3 Glacier is a cloud storage service that is optimized for long term
-storage for a relatively cheap price. To upload an archive to Amazon S3 Glacier
-vault, ensure you have:
+To upload an archive to Amazon S3 Glacier vault, ensure you have:
 
 -   Created an AWS account
 -   Created an Amazon S3 Glacier vault from the AWS CLI tool or the Management
@@ -58,6 +57,15 @@ There are additional options to customize your upload, such as adding a
 description to the archive or configuring the number of threads or the size of
 parts. Run `glacier upload --help` for more information.
 
+If a multipart upload is interrupted in the middle (because of an exception,
+interrupted manually, or other reason), the script will show you the upload ID.
+That upload ID can be used to resume the upload, using the same command but
+adding the `--upload-id` option, like so:
+
+```
+glacier upload --upload-id UPLOAD_ID VAULT_NAME FILE_NAME [FILE_NAME ...]
+```
+
 ### Retrieving an archive
 
 Retrieving an archive in glacier requires two steps. First, initiate a
@@ -84,7 +92,7 @@ a vault contains, you need to request an inventory of the archive, in a similar
 manner to retrieving an archive. To initiate an inventory, run:
 
 ```
-glacier archive init-retrieval VAULT_NAME ARCHIVE_ID
+glacier inventory init-retrieval VAULT_NAME
 ```
 
 Then, the inventory job will take some time to complete. Run the next step to
@@ -92,14 +100,15 @@ both check whether the job is complete and retrieve the inventory if it has been
 completed.
 
 ```
-glacier archive get VAULT_NAME JOB_ID FILE_NAME
+glacier inventory get VAULT_NAME JOB_ID
 ```
 
-### Deleting an archive, deleting an upload, creating/deleting a vault etc.
+### Deleting an archive, deleting an upload job, creating/deleting a vault, etc.
 
-Anything that is not listed above can be done using the AWS CLI. Those
-functionalities are not implemented here to avoid duplication of work, and
-minimize maintenance efforts of this package.
+All jobs other than uploading an archive and requesting/downloading an inventory
+or archive can be done using the AWS CLI. Those functionalities are not
+implemented here to avoid duplication of work, and minimize maintenance efforts
+of this package.
 
 ## Contributing
 
