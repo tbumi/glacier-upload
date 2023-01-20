@@ -45,6 +45,11 @@ def get(vault_name, job_id):
     except glacier.exceptions.ResourceNotFoundException as e:
         raise click.ClickException(e.response["Error"]["Message"])
 
+    if response["Action"] != "InventoryRetrieval":
+        raise click.ClickException(
+            "Job is not an inventory retrieval. Check the Job ID again."
+        )
+
     click.echo(f"Inventory status: {response['StatusCode']}")
 
     if not response["Completed"]:
