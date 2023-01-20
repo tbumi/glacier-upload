@@ -25,8 +25,9 @@ def init_retrieval(vault_name, archive_id, description):
     glacier = boto3.client("glacier")
 
     job_params = {"Type": "archive-retrieval", "ArchiveId": archive_id}
-    if description is not None:
-        job_params["Description"] = description
+    if description is not None:  
+        job_params[
+             "Description"] = description
 
     click.echo("Sending archive-retrieval initiation request...")
     try:
