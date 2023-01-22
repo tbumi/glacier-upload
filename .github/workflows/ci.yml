@@ -1,0 +1,25 @@
+name: Upload to PyPI
+on:
+  release:
+    types: [published]
+
+jobs:
+  upload-to-pypi:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install Poetry
+        run: pipx install poetry==1.3.2
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          cache: "poetry"
+
+      - name: Upload to PyPI
+        env:
+          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_TOKEN }}
+        run: poetry --build publish
