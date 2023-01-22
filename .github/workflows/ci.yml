@@ -20,4 +20,6 @@ jobs:
           cache: "poetry"
 
       - name: Upload to PyPI
+        env:
+          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_TOKEN }}
         run: poetry --build publish
