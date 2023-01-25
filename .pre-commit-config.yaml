@@ -28,3 +28,6 @@ repos:
     hooks:
       - id: prettier
         types_or: [json, markdown, yaml]
+
+ci:
+  autoupdate_schedule: monthly
