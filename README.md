@@ -23,9 +23,9 @@ $ pip install glacier_upload
 
 To upload an archive to Amazon S3 Glacier vault, ensure you have:
 
--   Created an AWS account
--   Created an Amazon S3 Glacier vault from the AWS CLI tool or the Management
-    Console
+- Created an AWS account
+- Created an Amazon S3 Glacier vault from the AWS CLI tool or the Management
+  Console
 
 ### Uploading an archive
 
