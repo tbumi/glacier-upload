@@ -7,7 +7,9 @@
 A helper tool to upload and manage archives in
 [Amazon S3 Glacier](https://docs.aws.amazon.com/amazonglacier/latest/dev/introduction.html)
 Vaults. Amazon S3 Glacier is a cloud storage service that is optimized for long
-term storage for a relatively cheap price.
+term storage for a relatively cheap price. NOT to be confused with Amazon S3
+with Glacier (Instant Retrieval, Flexible Retrieval, and Deep Archive) tier
+storage, which uses the S3 API and does not deal with vaults and archives.
 
 ## Installation
 

@@ -24,6 +24,7 @@ import traceback
 
 import boto3
 import click
+from tqdm import tqdm
 
 from .utils.tree_hash import calculate_total_tree_hash, calculate_tree_hash
 
@@ -155,15 +156,14 @@ def multipart_upload(
         except glacier.exceptions.ResourceNotFoundException as e:
             raise click.ClickException(e.response["Error"]["Message"])
 
-        with click.progressbar(parts, label="Verifying uploaded parts") as bar:
-            for part_data in bar:
-                byte_start = int(part_data["RangeInBytes"].partition("-")[0])
-                file_to_upload.seek(byte_start)
-                part = file_to_upload.read(part_size_bytes)
-                checksum = calculate_tree_hash(part, part_size_bytes)
+        for part_data in tqdm(parts, desc="Verifying uploaded parts"):
+            byte_start = int(part_data["RangeInBytes"].partition("-")[0])
+            file_to_upload.seek(byte_start)
+            part = file_to_upload.read(part_size_bytes)
+            checksum = calculate_tree_hash(part, part_size_bytes)
 
-                if checksum == part_data["SHA256TreeHash"]:
-                    part_list[byte_start] = checksum
+            if checksum == part_data["SHA256TreeHash"]:
+                part_list[byte_start] = checksum
 
     click.echo("Spawning threads...")
     with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:

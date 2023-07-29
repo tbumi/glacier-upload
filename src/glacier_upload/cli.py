@@ -121,9 +121,16 @@ def archive_group():
 
 @archive_group.command(name="init-retrieval")
 @click.option("-d", "--description", help="Description of this job")
+@click.option(
+    "-t",
+    "--tier",
+    help="Retrieval tier (Expedited, Standard, or Bulk)",
+    default="Standard",
+    show_default=True,
+)
 @click.argument("vault_name")
 @click.argument("archive_id")
-def init_archive_retrieval(vault_name, archive_id, description):
+def init_archive_retrieval(vault_name, archive_id, description, tier):
     """
     Initiate retrieval for the archive designated by ARCHIVE_ID in VAULT_NAME.
 
@@ -132,7 +139,7 @@ def init_archive_retrieval(vault_name, archive_id, description):
     the archive. To check the status and retrieve the archive, run
     glacier-get-archive with the vault name and job ID returned by this function.
     """
-    return archives.init_retrieval(vault_name, archive_id, description)
+    return archives.init_retrieval(vault_name, archive_id, description, tier)
 
 
 @archive_group.command(name="get")

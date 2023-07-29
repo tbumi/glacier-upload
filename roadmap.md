@@ -1,7 +1,6 @@
 - Unit tests
-- https://help.github.com/en/articles/setting-guidelines-for-repository-contributors
+- Support setting regions
 
-- Support multpart download of archives like in #25
 - Add progress indication for archiving
 - implement auto-retry on multipart upload failure
 
