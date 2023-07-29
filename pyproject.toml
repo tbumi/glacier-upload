@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "glacier-upload"
-version = "2.0"
+version = "2.1"
 description = "A helper tool to upload and manage archives in AWS Glacier Vaults"
 authors = ["Trapsilo Bumi <tbumi@thpd.io>"]
 license = "GPL-3.0+"
