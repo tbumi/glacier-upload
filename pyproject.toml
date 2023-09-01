@@ -29,7 +29,7 @@ tqdm = "^4.65.0"
 [tool.poetry.group.dev.dependencies]
 black = ">=22.12,<24.0"
 flake8 = "^6.0.0"
-mypy = ">=0.991,<1.4"
+mypy = ">=0.991,<1.6"
 isort = "^5.11.4"
 pre-commit = ">=2.21,<4.0"
 
