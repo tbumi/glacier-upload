@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v4.6.0
     hooks:
       - id: trailing-whitespace
         args: [--markdown-linebreak-ext=md]
@@ -12,19 +12,19 @@ repos:
         args: [--branch=main]
 
   - repo: https://github.com/psf/black
-    rev: 23.7.0
+    rev: 24.4.2
     hooks:
       - id: black
         language_version: python3.11
 
   - repo: https://github.com/pycqa/isort
-    rev: 5.12.0
+    rev: 5.13.2
     hooks:
       - id: isort
         name: isort (python)
 
   - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: v2.7.1
+    rev: v4.0.0-alpha.8
     hooks:
       - id: prettier
         types_or: [json, markdown, yaml]
